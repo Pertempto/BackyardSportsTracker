@@ -9,7 +9,7 @@ public class Sports {
     public static final String ALL = "all-sports";
     public static final String BASKETBALL = "sport-basketball";
     public static final String ULTIMATE = "sport-ultimate";
-    public static final String TAGBALL = "sport-tagball";
+    public static final String SPIKEBALL = "sport-spikeball";
 
     static public ArrayList<String> sports = new ArrayList<>();
     static public HashMap<String, Integer> icons = new HashMap<>();
@@ -30,10 +30,10 @@ public class Sports {
         targetScores.put(ULTIMATE, 3);
         changeFactors.put(ULTIMATE, 0.2);
 
-        sports.add(TAGBALL);
-        icons.put(TAGBALL, R.drawable.ic_tagball);
-        names.put(TAGBALL, R.string.tagball);
-        targetScores.put(TAGBALL, 15);
-        changeFactors.put(TAGBALL, 0.2);
+        sports.add(SPIKEBALL);
+        icons.put(SPIKEBALL, R.drawable.ic_spikeball);
+        names.put(SPIKEBALL, R.string.spikeball);
+        targetScores.put(SPIKEBALL, 25);
+        changeFactors.put(SPIKEBALL, 0.2);
     }
 }
