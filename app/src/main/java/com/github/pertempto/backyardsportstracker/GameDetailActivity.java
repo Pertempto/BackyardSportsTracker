@@ -85,7 +85,12 @@ public class GameDetailActivity extends AppCompatActivity {
                 List<Game> games = dataViewModel.getAllGamesBySport(game.sport);
                 // show delete option for last game only
                 if (game.equals(games.get(games.size()-1))) {
-                    menu.findItem(R.id.actionDelete).setVisible(true);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            menu.findItem(R.id.actionDelete).setVisible(true);
+                        }
+                    });
                 }
             }
         }).execute();
