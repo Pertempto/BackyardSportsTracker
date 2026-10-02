@@ -152,7 +152,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:onClick="onAddPlayerClick"
-            android:text="@string/addPlayer"
+            android:text="@string/addPlayers"
             app:layout_constraintEnd_toStartOf="@+id/middleGuideline"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/team1" />
@@ -162,7 +162,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:onClick="onAddPlayerClick"
-            android:text="@string/addPlayer"
+            android:text="@string/addPlayers"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toEndOf="@+id/middleGuideline"
             app:layout_constraintTop_toBottomOf="@+id/team2" />

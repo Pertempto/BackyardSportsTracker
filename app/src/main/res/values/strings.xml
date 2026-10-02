@@ -23,7 +23,9 @@
     <string name="ratingLabel">Rating:</string>
     <string name="add">Add</string>
     <string name="clearRatings">Clear Ratings</string>
-    <string name="addPlayer">Add Player</string>
+    <string name="addPlayers">Add Players</string>
+    <string name="selectPlayers">Select players</string>
+    <string name="addSelectedPlayers">Add selected</string>
     <string name="newGrouping">New Grouping</string>
     <string name="groupingNameFormat">"%s (%d) vs. %s (%d)"</string>
     <string name="team2Title">Team 2</string>

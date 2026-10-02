@@ -1,16 +1,12 @@
 package com.github.pertempto.backyardsportstracker;
 
 import android.arch.lifecycle.ViewModelProviders;
-import android.content.DialogInterface;
 import android.os.Bundle;
-import android.support.v4.app.SupportActivity;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -29,8 +25,6 @@ import com.github.pertempto.backyardsportstracker.data.Player;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 public class NewGroupingActivity extends AppCompatActivity {
@@ -127,11 +121,12 @@ public class NewGroupingActivity extends AppCompatActivity {
         if (sport == null) {
             Toast.makeText(this, "Choose a sport first", Toast.LENGTH_SHORT).show();
         } else {
-            final SupportActivity activity = this;
+            final NewGroupingActivity activity = this;
+            final String selectedSport = sport;
             new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
                 @Override
                 public void call() {
-                    final List<Player> players = dataViewModel.getAllPlayersBySport(sport);
+                    final List<Player> players = dataViewModel.getAllPlayersBySport(selectedSport);
                     final List<Player> team1Players = getGrouping().team1;
                     final List<Player> team2Players = getGrouping().team2;
                     players.removeAll(team1Players);
@@ -144,45 +139,17 @@ public class NewGroupingActivity extends AppCompatActivity {
                             }
                         });
                     } else {
-                        final AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-                        LayoutInflater inflater = getLayoutInflater();
-                        View dialogView = inflater.inflate(R.layout.dialog_add_player, null);
-
-                        final Spinner playerSpinner = dialogView.findViewById(R.id.players);
-                        final ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(activity, android.R.layout.simple_spinner_item);
-                        arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
-                        Collections.sort(players, new Comparator<Player>() {
-                            @Override
-                            public int compare(Player o1, Player o2) {
-                                return Double.compare(o2.ratings.get(sport), o1.ratings.get(sport));
-                            }
-                        });
-                        for (Player player : players) {
-                            arrayAdapter.add(String.format(getString(R.string.nameAndRatingFormat), player, player.ratings.get(sport)));
-                        }
-                        playerSpinner.setAdapter(arrayAdapter);
-
-                        builder.setView(dialogView)
-                                .setTitle(R.string.addPlayer)
-                                .setPositiveButton(R.string.add, new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialogInterface, int which) {
-                                        Player player = players.get(playerSpinner.getSelectedItemPosition());
-                                        if (team1Players.contains(player) || team2Players.contains(player)) {
-                                            Toast.makeText(activity, "Player is already on a team", Toast.LENGTH_SHORT).show();
-                                        } else {
-                                            selectedPlayers.add(player);
-                                            updateGroupings();
-                                        }
-                                    }
-                                })
-                                .setNegativeButton(R.string.cancel, null);
-
                         activity.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                builder.show();
+                                PlayerSelectionDialog.show(activity, players, selectedSport,
+                                        new PlayerSelectionDialog.OnPlayersSelectedListener() {
+                                            @Override
+                                            public void onPlayersSelected(ArrayList<Player> playersToAdd) {
+                                                selectedPlayers.addAll(playersToAdd);
+                                                updateGroupings();
+                                            }
+                                        });
                             }
                         });
                     }
