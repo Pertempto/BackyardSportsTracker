@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+java_home="$HOME/tools/java"
+android_home="$HOME/Android/Sdk"
+tmp_dir=""
+
+cleanup() {
+  if [[ -n "$tmp_dir" ]]; then
+    rm -rf -- "$tmp_dir"
+  fi
+}
+trap cleanup EXIT
+
+log_step() {
+  printf '\n[%s] %s\n' "$(date --iso-8601=seconds)" "$1"
+}
+
+verify_sha256() {
+  local file="$1"
+  local expected="$2"
+  printf '%s  %s\n' "$expected" "$file" | sha256sum --check --status || {
+    echo "Checksum verification failed for $file" >&2
+    return 1
+  }
+}
+
+log_step "Checking download prerequisites"
+missing_packages=()
+for tool_package in curl unzip; do
+  if ! command -v "$tool_package" >/dev/null 2>&1; then
+    missing_packages+=("$tool_package")
+  fi
+done
+if ((${#missing_packages[@]})); then
+  if [[ "$(id -u)" -eq 0 ]]; then
+    apt_get=(apt-get)
+  elif command -v sudo >/dev/null 2>&1; then
+    apt_get=(sudo apt-get)
+  else
+    echo "Missing ${missing_packages[*]} and neither root nor sudo is available." >&2
+    exit 1
+  fi
+  "${apt_get[@]}" update
+  "${apt_get[@]}" install -y "${missing_packages[@]}"
+fi
+
+mkdir -p "$HOME/tools" "$android_home/platforms" "$android_home/build-tools"
+
+log_step "Installing the pinned JDK 8 toolchain if needed"
+if [[ ! -x "$java_home/bin/java" ]] || ! "$java_home/bin/java" -version 2>&1 | grep -q '1\.8\.0_'; then
+  tmp_dir="$(mktemp -d)"
+  curl --fail --location --retry 3 \
+    https://corretto.aws/downloads/resources/8.504.04.1/amazon-corretto-8.504.04.1-linux-x64.tar.gz \
+    --output "$tmp_dir/jdk.tar.gz"
+  verify_sha256 "$tmp_dir/jdk.tar.gz" 4ce436ddc3258e43b35d0c1f5041913ae5fc14b4f9c5892de5684abc51c858ae
+  mkdir "$tmp_dir/jdk"
+  tar -xzf "$tmp_dir/jdk.tar.gz" -C "$tmp_dir/jdk" --strip-components=1
+  rm -rf -- "$java_home"
+  mv "$tmp_dir/jdk" "$java_home"
+  rm -rf -- "$tmp_dir"
+  tmp_dir=""
+fi
+
+log_step "Installing Android SDK Platform 28 and Build Tools 28.0.3 if needed"
+if [[ ! -f "$android_home/platforms/android-28/android.jar" ]]; then
+  tmp_dir="$(mktemp -d)"
+  curl --fail --location --retry 3 \
+    https://dl.google.com/android/repository/platform-28_r06.zip \
+    --output "$tmp_dir/platform.zip"
+  verify_sha256 "$tmp_dir/platform.zip" 8452dbbf9668a428abb243c4f02a943b7aa83af3cca627629a15c4c09f28e7bd
+  mkdir "$tmp_dir/platform"
+  unzip -q "$tmp_dir/platform.zip" -d "$tmp_dir/platform"
+  mkdir -p "$android_home/platforms/android-28"
+  cp -a "$tmp_dir/platform/android-9/." "$android_home/platforms/android-28/"
+  rm -rf -- "$tmp_dir"
+  tmp_dir=""
+fi
+if [[ ! -x "$android_home/build-tools/28.0.3/aapt" || ! -x "$android_home/build-tools/28.0.3/apksigner" ]]; then
+  tmp_dir="$(mktemp -d)"
+  curl --fail --location --retry 3 \
+    https://dl.google.com/android/repository/build-tools_r28.0.3-linux.zip \
+    --output "$tmp_dir/build-tools.zip"
+  verify_sha256 "$tmp_dir/build-tools.zip" 7954956a40633c88f693d638cbc23f68e9e2499dc7a4b7dfdaf6a3e91387749a
+  mkdir "$tmp_dir/build-tools"
+  unzip -q "$tmp_dir/build-tools.zip" -d "$tmp_dir/build-tools"
+  mkdir -p "$android_home/build-tools/28.0.3"
+  cp -a "$tmp_dir/build-tools/android-9/." "$android_home/build-tools/28.0.3/"
+  rm -rf -- "$tmp_dir"
+  tmp_dir=""
+fi
+
+log_step "Persisting Android build environment for future login shells"
+touch "$HOME/.bash_profile"
+profile_marker="# BackyardSportsTracker Android build environment"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile"; then
+  cat >> "$HOME/.bash_profile" <<'PROFILE'
+
+# BackyardSportsTracker Android build environment
+export JAVA_HOME="$HOME/tools/java"
+export ANDROID_HOME="$HOME/Android/Sdk"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export PATH="$JAVA_HOME/bin:$PATH"
+PROFILE
+fi
+
+export JAVA_HOME="$java_home"
+export ANDROID_HOME="$android_home"
+export ANDROID_SDK_ROOT="$android_home"
+export PATH="$JAVA_HOME/bin:$PATH"
+
+log_step "Warming the Gradle wrapper and project dependency cache"
+cd "$repo_root"
+bash ./gradlew --no-daemon assembleDebug
+
+log_step "Orb setup complete"
