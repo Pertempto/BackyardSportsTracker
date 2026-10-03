@@ -2,7 +2,6 @@ package com.github.pertempto.backyardsportstracker;
 
 import android.arch.lifecycle.ViewModelProviders;
 import android.os.Bundle;
-import android.support.v4.app.SupportActivity;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -30,6 +29,7 @@ import com.github.pertempto.backyardsportstracker.data.Sports;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 public class NewGameActivity extends AppCompatActivity {
@@ -37,6 +37,7 @@ public class NewGameActivity extends AppCompatActivity {
     private static final String LOG_TAG = "NewGameActivity";
 
     public static final String ARG_GROUPING_ID = "groupingId";
+    public static final String ARG_INITIAL_SPORT = "initialSport";
 
     private DataViewModel dataViewModel;
 
@@ -61,7 +62,13 @@ public class NewGameActivity extends AppCompatActivity {
 
         dataViewModel = ViewModelProviders.of(this).get(DataViewModel.class);
 
-        sport = null;
+        String initialSport = getIntent().getStringExtra(ARG_INITIAL_SPORT);
+        if (!Sports.sports.contains(initialSport)) {
+            initialSport = SportPreferences.getSelectedSport(this);
+        } else {
+            SportPreferences.setSelectedSport(this, initialSport);
+        }
+        sport = initialSport;
         teams = new ArrayList<>();
         teams.add(new ArrayList<Player>());
         teams.add(new ArrayList<Player>());
@@ -73,21 +80,26 @@ public class NewGameActivity extends AppCompatActivity {
             arrayAdapter.add(getString(Sports.names.get(sport)));
         }
         spinner.setAdapter(arrayAdapter);
+        spinner.setSelection(Sports.sports.indexOf(sport), false);
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Log.d(LOG_TAG, "spinner item selected");
                 sport = Sports.sports.get(position);
-                for (Player player: teams.get(0)) {
+                SportPreferences.setSelectedSport(NewGameActivity.this, sport);
+                for (Iterator<Player> players = teams.get(0).iterator(); players.hasNext();) {
+                    Player player = players.next();
                     if (!player.ratings.containsKey(sport)) {
-                        teams.get(0).remove(player);
+                        players.remove();
                     }
                 }
-                for (Player player: teams.get(1)) {
+                for (Iterator<Player> players = teams.get(1).iterator(); players.hasNext();) {
+                    Player player = players.next();
                     if (!player.ratings.containsKey(sport)) {
-                        teams.get(1).remove(player);
+                        players.remove();
                     }
                 }
+                updateTeams();
             }
 
             @Override
@@ -102,25 +114,39 @@ public class NewGameActivity extends AppCompatActivity {
         // create game from grouping
         if (groupingId != 0) {
             Log.d(LOG_TAG, String.format("creating game from grouping #%d", groupingId));
-            final SupportActivity activity = this;
             new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
                 @Override
                 public void call() {
-                    Grouping grouping = dataViewModel.getGrouping(groupingId);
-                    sport = grouping.sport;
-                    teams.get(0).addAll(grouping.team1);
-                    teams.get(1).addAll(grouping.team2);
-                    Log.d(LOG_TAG, String.format("team1: %s", teams.get(0)));
-                    Log.d(LOG_TAG, String.format("team2: %s", teams.get(1)));
-                    activity.runOnUiThread(new Runnable() {
+                    final Grouping grouping = dataViewModel.getGrouping(groupingId);
+                    runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            if (grouping == null) {
+                                Toast.makeText(NewGameActivity.this, R.string.groupingUnavailable, Toast.LENGTH_SHORT).show();
+                                finish();
+                                return;
+                            }
+                            teams.get(0).addAll(grouping.team1);
+                            teams.get(1).addAll(grouping.team2);
+                            filterTeamsForSport();
+                            Log.d(LOG_TAG, String.format("team1: %s", teams.get(0)));
+                            Log.d(LOG_TAG, String.format("team2: %s", teams.get(1)));
                             Log.d(LOG_TAG, "updating teams");
                             updateTeams();
                         }
                     });
                 }
             }).execute();
+        }
+    }
+
+    private void filterTeamsForSport() {
+        for (ArrayList<Player> team : teams) {
+            for (Iterator<Player> players = team.iterator(); players.hasNext();) {
+                if (!players.next().ratings.containsKey(sport)) {
+                    players.remove();
+                }
+            }
         }
     }
 

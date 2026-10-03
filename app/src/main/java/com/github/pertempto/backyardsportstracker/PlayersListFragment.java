@@ -5,7 +5,6 @@ import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
@@ -31,12 +30,10 @@ import java.util.List;
 
 public class PlayersListFragment extends Fragment {
     private static final String LOG_TAG = "PlayersListFragment";
-    private static final String STATE_SPORT = "sport";
 
     private OnPlayerClickListener listener;
     private PlayersRecyclerViewAdapter adapter;
     private DataViewModel dataViewModel;
-    private SharedPreferences sharedPref;
     private String sport;
 
     public PlayersListFragment() {}
@@ -120,24 +117,13 @@ public class PlayersListFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-        // load ui state
-        sharedPref = getActivity().getPreferences(Context.MODE_PRIVATE);
-        String sport = sharedPref.getString(STATE_SPORT, Sports.sports.get(0));
-        setSport(sport);
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        // save ui state
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString(STATE_SPORT, sport);
-        editor.apply();
+        setSport(SportPreferences.getSelectedSport(getActivity()));
     }
 
     void setSport(final String sport) {
         Log.d(LOG_TAG, String.format("setting sport: %s", sport));
         this.sport = sport;
+        SportPreferences.setSelectedSport(getActivity(), sport);
         final Activity activity = getActivity();
         new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
             @Override
@@ -166,6 +152,7 @@ public class PlayersListFragment extends Fragment {
             arrayAdapter.add(getString(Sports.names.get(sport)));
         }
         spinner.setAdapter(arrayAdapter);
+        spinner.setSelection(Sports.sports.indexOf(sport));
 
         builder.setView(dialogView)
                 .setTitle(R.string.setSport)

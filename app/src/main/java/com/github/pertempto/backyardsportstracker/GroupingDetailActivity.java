@@ -16,6 +16,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.pertempto.backyardsportstracker.data.BackgroundTask;
 import com.github.pertempto.backyardsportstracker.data.DataViewModel;
@@ -26,11 +27,13 @@ import com.github.pertempto.backyardsportstracker.data.Sports;
 public class GroupingDetailActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = "GroupingDetailActivity";
+    private static final int REQUEST_EDIT_GROUPING = 1;
 
     public static final String ARG_GROUPING_ID = "groupingId";
 
     private DataViewModel dataViewModel;
     private Grouping grouping;
+    private long groupingId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,9 +48,13 @@ public class GroupingDetailActivity extends AppCompatActivity {
             actionBar.setDisplayHomeAsUpEnabled(true);
         }
 
-        final long groupingId = getIntent().getLongExtra(ARG_GROUPING_ID, 0);
+        groupingId = getIntent().getLongExtra(ARG_GROUPING_ID, 0);
 
         dataViewModel = ViewModelProviders.of(this).get(DataViewModel.class);
+        loadGrouping();
+    }
+
+    private void loadGrouping() {
         new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
             @Override
             public void call() {
@@ -66,7 +73,15 @@ public class GroupingDetailActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.actionEdit:
+                if (grouping == null) {
+                    Toast.makeText(this, R.string.groupingUnavailable, Toast.LENGTH_SHORT).show();
+                    return true;
+                }
                 Log.d(LOG_TAG, "grouping edit");
+                Intent editIntent = new Intent(this, NewGroupingActivity.class);
+                editIntent.putExtra(ARG_GROUPING_ID, grouping.id);
+                editIntent.putExtra(NewGameActivity.ARG_INITIAL_SPORT, grouping.sport);
+                startActivityForResult(editIntent, REQUEST_EDIT_GROUPING);
                 return true;
             case R.id.actionDelete:
                 deleteGrouping();
@@ -82,10 +97,23 @@ public class GroupingDetailActivity extends AppCompatActivity {
         return true;
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_EDIT_GROUPING && resultCode == RESULT_OK) {
+            loadGrouping();
+        }
+    }
+
     public void onCreateGameClick(View view) {
+        if (grouping == null) {
+            Toast.makeText(this, R.string.groupingUnavailable, Toast.LENGTH_SHORT).show();
+            return;
+        }
         Intent intent = new Intent(this, NewGameActivity.class);
         Log.d(LOG_TAG, String.format("creating new game with grouping #%d", grouping.id));
         intent.putExtra(NewGameActivity.ARG_GROUPING_ID, grouping.id);
+        intent.putExtra(NewGameActivity.ARG_INITIAL_SPORT, grouping.sport);
         // start the new game activity
         startActivity(intent);
         // close this activity

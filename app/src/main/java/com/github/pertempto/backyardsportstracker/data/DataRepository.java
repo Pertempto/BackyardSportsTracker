@@ -9,6 +9,7 @@ import java.util.List;
 
 public class DataRepository {
     private static final String LOG_TAG = "DataRepository";
+    private Database database;
     private GameDao gameDao;
     private GroupingDao groupingDao;
     private PlayerDao playerDao;
@@ -16,12 +17,12 @@ public class DataRepository {
     private GamePlayerJoinDao gamePlayerJoinDao;
 
     DataRepository(Application application) {
-        final Database db = Database.getInstance(application);
-        gameDao = db.gameDao();
-        groupingDao = db.groupingDao();
-        playerDao = db.playerDao();
-        groupingPlayerJoinDao = db.groupingPlayerJoinDao();
-        gamePlayerJoinDao = db.gamePlayerJoinDao();
+        database = Database.getInstance(application);
+        gameDao = database.gameDao();
+        groupingDao = database.groupingDao();
+        playerDao = database.playerDao();
+        groupingPlayerJoinDao = database.groupingPlayerJoinDao();
+        gamePlayerJoinDao = database.gamePlayerJoinDao();
     }
 
     public void delete(Game game) {
@@ -154,6 +155,33 @@ public class DataRepository {
                 }
             }
         }).execute();
+    }
+
+    public void update(final Grouping grouping, final Runnable onComplete) {
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... ignored) {
+                database.runInTransaction(new Runnable() {
+                    @Override
+                    public void run() {
+                        groupingDao.update(grouping.toEntity());
+                        groupingPlayerJoinDao.deleteAllForGrouping(grouping.id);
+                        for (Player player : grouping.team1) {
+                            groupingPlayerJoinDao.insert(new GroupingPlayerJoin(grouping.id, player.id, 1));
+                        }
+                        for (Player player : grouping.team2) {
+                            groupingPlayerJoinDao.insert(new GroupingPlayerJoin(grouping.id, player.id, 2));
+                        }
+                    }
+                });
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void ignored) {
+                onComplete.run();
+            }
+        }.execute();
     }
 
     public void insert(Player player) {

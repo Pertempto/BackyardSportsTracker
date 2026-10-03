@@ -25,6 +25,7 @@ import com.github.pertempto.backyardsportstracker.data.Player;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 public class NewGroupingActivity extends AppCompatActivity {
@@ -37,6 +38,7 @@ public class NewGroupingActivity extends AppCompatActivity {
     private ArrayList<Player> selectedPlayers;
     private ArrayList<Grouping> groupings;
     private int groupingIndex = 0;
+    private long editingGroupingId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,25 +56,40 @@ public class NewGroupingActivity extends AppCompatActivity {
 
         dataViewModel = ViewModelProviders.of(this).get(DataViewModel.class);
 
-        sport = null;
+        final long groupingId = getIntent().getLongExtra(GroupingDetailActivity.ARG_GROUPING_ID, 0);
+        editingGroupingId = groupingId;
+        String initialSport = getIntent().getStringExtra(NewGameActivity.ARG_INITIAL_SPORT);
+        if (!Sports.sports.contains(initialSport)) {
+            initialSport = SportPreferences.getSelectedSport(this);
+        } else {
+            SportPreferences.setSelectedSport(this, initialSport);
+        }
+        sport = initialSport;
         selectedPlayers = new ArrayList<>();
         updateGroupings();
 
-        Spinner spinner = findViewById(R.id.sportChoices);
+        if (editingGroupingId != 0 && actionBar != null) {
+            actionBar.setTitle(R.string.editGrouping);
+        }
+
+        final Spinner spinner = findViewById(R.id.sportChoices);
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item);
         arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         for (String sport : Sports.sports) {
             arrayAdapter.add(getString(Sports.names.get(sport)));
         }
         spinner.setAdapter(arrayAdapter);
+        spinner.setSelection(Sports.sports.indexOf(sport), false);
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 Log.d(LOG_TAG, "spinner item selected");
                 sport = Sports.sports.get(position);
-                for (Player player: selectedPlayers) {
+                SportPreferences.setSelectedSport(NewGroupingActivity.this, sport);
+                for (Iterator<Player> players = selectedPlayers.iterator(); players.hasNext();) {
+                    Player player = players.next();
                     if (!player.ratings.containsKey(sport)) {
-                        selectedPlayers.remove(player);
+                        players.remove();
                     }
                 }
                 updateGroupings();
@@ -85,6 +102,35 @@ public class NewGroupingActivity extends AppCompatActivity {
                 updateGroupings();
             }
         });
+
+        if (editingGroupingId != 0) {
+            new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
+                @Override
+                public void call() {
+                    final Grouping grouping = dataViewModel.getGrouping(editingGroupingId);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (grouping == null) {
+                                Toast.makeText(NewGroupingActivity.this, R.string.groupingUnavailable, Toast.LENGTH_SHORT).show();
+                                finish();
+                                return;
+                            }
+                            sport = grouping.sport;
+                            SportPreferences.setSelectedSport(NewGroupingActivity.this, sport);
+                            spinner.setSelection(Sports.sports.indexOf(sport), false);
+                            selectedPlayers.clear();
+                            selectedPlayers.addAll(grouping.team1);
+                            selectedPlayers.addAll(grouping.team2);
+                            groupings.clear();
+                            groupings.add(grouping);
+                            groupingIndex = 0;
+                            updateTeams();
+                        }
+                    });
+                }
+            }).execute();
+        }
     }
 
     @Override
@@ -161,8 +207,20 @@ public class NewGroupingActivity extends AppCompatActivity {
     void submitGrouping() {
         Log.d(LOG_TAG, "submit grouping");
         if (getGrouping().team1.size() > 0 && getGrouping().team2.size() > 0) {
-            dataViewModel.insert(groupings.get(groupingIndex));
-            finish();
+            Grouping grouping = getGrouping();
+            if (editingGroupingId == 0) {
+                dataViewModel.insert(grouping);
+                finish();
+            } else {
+                grouping.id = editingGroupingId;
+                dataViewModel.update(grouping, new Runnable() {
+                    @Override
+                    public void run() {
+                        setResult(RESULT_OK);
+                        finish();
+                    }
+                });
+            }
         } else {
             Toast.makeText(this, "Invalid teams", Toast.LENGTH_SHORT).show();
         }

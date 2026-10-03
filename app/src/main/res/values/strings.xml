@@ -27,6 +27,8 @@
     <string name="selectPlayers">Select players</string>
     <string name="addSelectedPlayers">Add selected</string>
     <string name="newGrouping">New Grouping</string>
+    <string name="editGrouping">Edit Grouping</string>
+    <string name="groupingUnavailable">This grouping is no longer available.</string>
     <string name="groupingNameFormat">"%s (%d) vs. %s (%d)"</string>
     <string name="team2Title">Team 2</string>
     <string name="team1Title">Team 1</string>

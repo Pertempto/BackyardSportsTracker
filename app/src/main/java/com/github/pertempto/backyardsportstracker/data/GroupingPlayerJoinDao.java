@@ -17,6 +17,9 @@ public interface GroupingPlayerJoinDao {
     @Query("DELETE FROM grouping_player_join")
     void deleteAll();
 
+    @Query("DELETE FROM grouping_player_join WHERE groupingId = :groupingId")
+    void deleteAllForGrouping(long groupingId);
+
     @Query("SELECT * FROM players INNER JOIN grouping_player_join ON players.id=grouping_player_join.playerId WHERE grouping_player_join.groupingId=:groupingId AND grouping_player_join.teamNum=1")
     List<PlayerEntity> getTeam1Players(long groupingId);
 
