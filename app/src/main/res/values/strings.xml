@@ -40,6 +40,12 @@
     <string name="scoreFormat">%d - %d</string>
     <string name="scoreLabel">Score:</string>
     <string name="clearDatabase">Clear Database</string>
+    <string name="exportData">Export Data</string>
+    <string name="importData">Import Data</string>
+    <string name="importConfirmationMessage">Importing this backup replaces all current players, games, and groupings.</string>
+    <string name="exportComplete">Backup exported.</string>
+    <string name="importComplete">Backup imported.</string>
+    <string name="backupFailed">Could not read or write the backup file.</string>
     <string name="setSport">Set Sport</string>
     <string name="teamRatingAndChanceFormat">%.2f (%.2f%%)</string>
     <string name="createGame">Create Game</string>

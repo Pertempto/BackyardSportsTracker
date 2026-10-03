@@ -11,6 +11,12 @@ public interface GameDao extends DataDao<GameEntity> {
     @Query("SELECT * FROM games WHERE deleted != 1 ORDER BY id ASC")
     List<GameEntity> getAll();
 
+    @Query("SELECT * FROM games ORDER BY id ASC")
+    List<GameEntity> getAllIncludingDeleted();
+
+    @Query("DELETE FROM games")
+    void deleteAll();
+
     @Query("SELECT * FROM games WHERE id = :id")
     GameEntity getById(long id);
 }

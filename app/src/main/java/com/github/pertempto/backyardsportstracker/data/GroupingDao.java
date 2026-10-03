@@ -11,6 +11,12 @@ public interface GroupingDao extends DataDao<GroupingEntity> {
     @Query("SELECT * FROM groupings WHERE deleted != 1 ORDER BY id ASC")
     List<GroupingEntity> getAll();
 
+    @Query("SELECT * FROM groupings ORDER BY id ASC")
+    List<GroupingEntity> getAllIncludingDeleted();
+
+    @Query("DELETE FROM groupings")
+    void deleteAll();
+
     @Query("SELECT * FROM groupings WHERE id = :id")
     GroupingEntity getById(long id);
 }
