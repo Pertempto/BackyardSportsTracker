@@ -37,12 +37,14 @@ public class NewGameActivity extends AppCompatActivity {
     private static final String LOG_TAG = "NewGameActivity";
 
     public static final String ARG_GROUPING_ID = "groupingId";
+    public static final String ARG_GAME_ID = "gameId";
     public static final String ARG_INITIAL_SPORT = "initialSport";
 
     private DataViewModel dataViewModel;
 
     private String sport;
     private ArrayList<ArrayList<Player>> teams;
+    private Game editingGame;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +61,7 @@ public class NewGameActivity extends AppCompatActivity {
         }
 
         final long groupingId = getIntent().getLongExtra(ARG_GROUPING_ID, 0);
+        final long gameId = getIntent().getLongExtra(ARG_GAME_ID, 0);
 
         dataViewModel = ViewModelProviders.of(this).get(DataViewModel.class);
 
@@ -73,7 +76,7 @@ public class NewGameActivity extends AppCompatActivity {
         teams.add(new ArrayList<Player>());
         teams.add(new ArrayList<Player>());
 
-        Spinner spinner = findViewById(R.id.sportChoices);
+        final Spinner spinner = findViewById(R.id.sportChoices);
         ArrayAdapter<String> arrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item);
         arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         for (String sport : Sports.sports) {
@@ -110,6 +113,38 @@ public class NewGameActivity extends AppCompatActivity {
                 updateTeams();
             }
         });
+
+        if (gameId != 0) {
+            if (actionBar != null) {
+                actionBar.setTitle(R.string.editGame);
+            }
+            spinner.setEnabled(false);
+            new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
+                @Override
+                public void call() {
+                    final Game game = dataViewModel.getGame(gameId);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (game == null || game.deleted) {
+                                Toast.makeText(NewGameActivity.this, R.string.gameUnavailable, Toast.LENGTH_SHORT).show();
+                                finish();
+                                return;
+                            }
+                            editingGame = game;
+                            sport = game.sport;
+                            SportPreferences.setSelectedSport(NewGameActivity.this, sport);
+                            spinner.setSelection(Sports.sports.indexOf(sport), false);
+                            ((EditText) findViewById(R.id.team1Score)).setText(String.valueOf(game.team1Score));
+                            ((EditText) findViewById(R.id.team2Score)).setText(String.valueOf(game.team2Score));
+                            teams.get(0).addAll(game.team1);
+                            teams.get(1).addAll(game.team2);
+                            updateTeams();
+                        }
+                    });
+                }
+            }).execute();
+        }
 
         // create game from grouping
         if (groupingId != 0) {
@@ -222,8 +257,27 @@ public class NewGameActivity extends AppCompatActivity {
             try {
                 int team1Score = Integer.parseInt(team1ScoreEdit.getText().toString());
                 int team2Score = Integer.parseInt(team2ScoreEdit.getText().toString());
+                if (team1Score < 0 || team2Score < 0 || (long) team1Score + team2Score == 0) {
+                    Toast.makeText(this, R.string.invalidScore, Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 Log.d(LOG_TAG, String.format("team 1 score: %d", team1Score));
                 Log.d(LOG_TAG, String.format("team 2 score: %d", team2Score));
+
+                if (editingGame != null) {
+                    editingGame.team1Score = team1Score;
+                    editingGame.team2Score = team2Score;
+                    editingGame.team1 = new ArrayList<>(teams.get(0));
+                    editingGame.team2 = new ArrayList<>(teams.get(1));
+                    dataViewModel.update(editingGame, new Runnable() {
+                        @Override
+                        public void run() {
+                            setResult(RESULT_OK);
+                            finish();
+                        }
+                    });
+                    return;
+                }
 
                 Date date = new Date();
                 HashMap<Long, Double> initialRatings = new HashMap<>();
@@ -256,7 +310,7 @@ public class NewGameActivity extends AppCompatActivity {
 
                 finish();
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "Invalid score", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.invalidScore, Toast.LENGTH_SHORT).show();
             }
         } else {
             Toast.makeText(this, "Invalid teams", Toast.LENGTH_SHORT).show();
@@ -271,12 +325,13 @@ public class NewGameActivity extends AppCompatActivity {
         double team1Rating = 0;
         for (final Player player : teams.get(0)) {
             Log.d(LOG_TAG, String.format("Player on team1: %s", player));
-            team1Rating += player.ratings.get(sport);
+            double playerRating = getDisplayedRating(player);
+            team1Rating += playerRating;
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, player.ratings.get(sport)));
+            textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, playerRating));
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -293,12 +348,13 @@ public class NewGameActivity extends AppCompatActivity {
         double team2Rating = 0;
         for (final Player player : teams.get(1)) {
             Log.d(LOG_TAG, String.format("Player on team2: %s", player));
-            team2Rating += player.ratings.get(sport);
+            double playerRating = getDisplayedRating(player);
+            team2Rating += playerRating;
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, player.ratings.get(sport)));
+            textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, playerRating));
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -319,5 +375,15 @@ public class NewGameActivity extends AppCompatActivity {
             team1RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team1Rating, team1Rating / (team1Rating + team2Rating) * 100));
             team2RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team2Rating, team2Rating / (team1Rating + team2Rating) * 100));
         }
+    }
+
+    private double getDisplayedRating(Player player) {
+        if (editingGame != null) {
+            Double gameRating = editingGame.initialRatings.get(player.id);
+            if (gameRating != null) {
+                return gameRating;
+            }
+        }
+        return player.ratings.get(sport);
     }
 }

@@ -5,7 +5,9 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class DataRepository {
     private static final String LOG_TAG = "DataRepository";
@@ -137,6 +139,62 @@ public class DataRepository {
                 }
             }
         }).execute();
+    }
+
+    public void update(final Game editedGame, final Runnable onComplete) {
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... ignored) {
+                database.runInTransaction(new Runnable() {
+                    @Override
+                    public void run() {
+                        List<Game> games = new ArrayList<>();
+                        for (Game game : getAllGames()) {
+                            if (game.sport.equals(editedGame.sport)) {
+                                if (game.id == editedGame.id) {
+                                    game.team1 = editedGame.team1;
+                                    game.team2 = editedGame.team2;
+                                }
+                                games.add(game);
+                            }
+                        }
+                        Map<Long, Double> currentPlayerRatings = new HashMap<>();
+                        for (PlayerEntity player : playerDao.getAll()) {
+                            Double rating = player.ratings.get(editedGame.sport);
+                            if (rating != null) {
+                                currentPlayerRatings.put(player.id, rating);
+                            }
+                        }
+                        Map<Long, Double> currentRatings = GameHistoryReplayer.replay(
+                                games, editedGame.id, editedGame.team1Score, editedGame.team2Score,
+                                currentPlayerRatings);
+                        for (Game game : games) {
+                            gameDao.update(game.toEntity());
+                        }
+                        gamePlayerJoinDao.deleteAllForGame(editedGame.id);
+                        for (Player player : editedGame.team1) {
+                            gamePlayerJoinDao.insert(new GamePlayerJoin(editedGame.id, player.id, 1));
+                        }
+                        for (Player player : editedGame.team2) {
+                            gamePlayerJoinDao.insert(new GamePlayerJoin(editedGame.id, player.id, 2));
+                        }
+                        for (Map.Entry<Long, Double> rating : currentRatings.entrySet()) {
+                            PlayerEntity player = playerDao.getById(rating.getKey());
+                            if (player != null) {
+                                player.ratings.put(editedGame.sport, rating.getValue());
+                                playerDao.update(player);
+                            }
+                        }
+                    }
+                });
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void ignored) {
+                onComplete.run();
+            }
+        }.execute();
     }
 
     public void insert(final Grouping grouping) {

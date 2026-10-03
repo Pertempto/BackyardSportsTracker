@@ -39,6 +39,9 @@
     <string name="deleteButton">Delete Button</string>
     <string name="sportFormat">Sport: %s</string>
     <string name="newGame">New Game</string>
+    <string name="editGame">Edit Game</string>
+    <string name="gameUnavailable">This game is no longer available.</string>
+    <string name="invalidScore">Enter non-negative scores with at least one point.</string>
     <string name="scoreFormat">%d - %d</string>
     <string name="scoreLabel">Score:</string>
     <string name="clearDatabase">Clear Database</string>

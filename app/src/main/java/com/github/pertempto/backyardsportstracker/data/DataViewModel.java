@@ -61,6 +61,9 @@ public class DataViewModel extends AndroidViewModel {
     public void insert(Game game) {
         repository.insert(game);
     }
+    public void update(Game game, Runnable onComplete) {
+        repository.update(game, onComplete);
+    }
     public void insert(Grouping grouping) {
         repository.insert(grouping);
     }

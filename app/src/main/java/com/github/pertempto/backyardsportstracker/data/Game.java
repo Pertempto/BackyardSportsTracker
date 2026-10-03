@@ -94,12 +94,20 @@ public class Game extends BaseDataObject{
         }
 
         double totalRating = team1Rating + team2Rating;
+        long totalScore = (long) team1Score + team2Score;
+        if (team1Rating <= 0 || team2Rating <= 0 || totalRating <= 0
+                || team1Score < 0 || team2Score < 0 || totalScore <= 0) {
+            ArrayList<Double> unchangedFactors = new ArrayList<>();
+            unchangedFactors.add(1.0);
+            unchangedFactors.add(1.0);
+            return unchangedFactors;
+        }
         double team1Chance = team1Rating / totalRating;
         double team2Chance = team2Rating / totalRating;
 //        Log.d(LOG_TAG, String.format("team 1 chance: %f", team1Chance));
 //        Log.d(LOG_TAG, String.format("team 2 chance: %f", team2Chance));
-        double team1ScoreRatio = (double)team1Score / (team1Score + team2Score);
-        double team2ScoreRatio = (double)team2Score / (team1Score + team2Score);
+        double team1ScoreRatio = (double)team1Score / totalScore;
+        double team2ScoreRatio = (double)team2Score / totalScore;
 //        Log.d(LOG_TAG, String.format("team 1 score ratio: %f", team1ScoreRatio));
 //        Log.d(LOG_TAG, String.format("team 2 score ratio: %f", team2ScoreRatio));
 

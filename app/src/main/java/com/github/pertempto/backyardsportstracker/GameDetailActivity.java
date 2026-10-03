@@ -3,6 +3,7 @@ package com.github.pertempto.backyardsportstracker;
 import android.app.Activity;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AlertDialog;
@@ -28,11 +29,13 @@ import java.util.List;
 public class GameDetailActivity extends AppCompatActivity {
 
     private static final String LOG_TAG = "GameDetailActivity";
+    private static final int REQUEST_EDIT_GAME = 1;
 
     public static final String ARG_GAME_ID = "gameId";
 
     private DataViewModel dataViewModel;
     private Game game;
+    private long gameId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,13 +50,23 @@ public class GameDetailActivity extends AppCompatActivity {
             actionBar.setDisplayHomeAsUpEnabled(true);
         }
 
-        final long gameId = getIntent().getLongExtra(ARG_GAME_ID, 0);
+        gameId = getIntent().getLongExtra(ARG_GAME_ID, 0);
 
         dataViewModel = ViewModelProviders.of(this).get(DataViewModel.class);
+        loadGame();
+    }
+
+    private void loadGame() {
         new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
             @Override
             public void call() {
-                setGame(dataViewModel.getGame(gameId));
+                final Game game = dataViewModel.getGame(gameId);
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        setGame(game);
+                    }
+                });
             }
         }).execute();
     }
@@ -62,7 +75,11 @@ public class GameDetailActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.actionEdit:
-                Log.d(LOG_TAG, "game edit");
+                if (game != null) {
+                    Intent intent = new Intent(this, NewGameActivity.class);
+                    intent.putExtra(NewGameActivity.ARG_GAME_ID, game.id);
+                    startActivityForResult(intent, REQUEST_EDIT_GAME);
+                }
                 return true;
             case R.id.actionDelete:
                 deleteGame();
@@ -75,10 +92,11 @@ public class GameDetailActivity extends AppCompatActivity {
     @Override
     public boolean onCreateOptionsMenu(final Menu menu) {
         getMenuInflater().inflate(R.menu.detail_options, menu);
-        // can't edit a game
-        menu.removeItem(R.id.actionEdit);
-        // hide delete option
+        menu.findItem(R.id.actionEdit).setVisible(game != null);
         menu.findItem(R.id.actionDelete).setVisible(false);
+        if (game == null) {
+            return true;
+        }
         new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
             @Override
             public void call() {
@@ -95,6 +113,14 @@ public class GameDetailActivity extends AppCompatActivity {
             }
         }).execute();
         return true;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_EDIT_GAME && resultCode == RESULT_OK) {
+            loadGame();
+        }
     }
 
     private void deleteGame() {
@@ -188,6 +214,10 @@ public class GameDetailActivity extends AppCompatActivity {
                 team1RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team1Rating, team1Rating / (team1Rating + team2Rating) * 100));
                 team2RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team2Rating, team2Rating / (team1Rating + team2Rating) * 100));
             }
+        } else {
+            Toast.makeText(this, R.string.gameUnavailable, Toast.LENGTH_SHORT).show();
+            finish();
         }
+        invalidateOptionsMenu();
     }
 }
