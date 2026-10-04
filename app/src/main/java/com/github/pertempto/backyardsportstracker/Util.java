@@ -32,9 +32,9 @@ public class Util {
     public static ArrayList<Grouping> generateGroupings(ArrayList<Player> players, final String sport,
                                                        List<Game> games) {
         PlayerStats.sortPlayers(players, games, sport);
-        final HashMap<Long, Double> strengths = new HashMap<>();
+        final HashMap<Long, PlayerStats> stats = new HashMap<>();
         for (Player player : players) {
-            strengths.put(player.id, PlayerStats.fromGames(player, games, sport).getStrength());
+            stats.put(player.id, PlayerStats.fromGames(player, games, sport));
         }
 
         ArrayList<Grouping> groupings = new ArrayList<>();
@@ -60,13 +60,10 @@ public class Util {
                 int teamIndex = (int) Math.floor((i % Math.pow(2, j + 1)) / Math.pow(2, j));
                 teams.get(teamIndex).add(player);
             }
-            if (Math.abs(teams.get(0).size() - teams.get(1).size()) > 1) {
-                continue;
-            }
             Collections.sort(teams, new Comparator<ArrayList<Player>>() {
                 @Override
                 public int compare(ArrayList<Player> o1, ArrayList<Player> o2) {
-                    return Double.compare(rateTeam(o1, strengths), rateTeam(o2, strengths));
+                    return Double.compare(rateTeam(o1, stats), rateTeam(o2, stats));
                 }
             });
             groupings.add(new Grouping(sport, teams.get(0), teams.get(1)));
@@ -75,22 +72,23 @@ public class Util {
         Collections.sort(groupings, new Comparator<Grouping>() {
             @Override
             public int compare(Grouping o1, Grouping o2) {
-                return Double.compare(rateGrouping(o1, strengths), rateGrouping(o2, strengths));
+                return Double.compare(rateGrouping(o1, stats), rateGrouping(o2, stats));
             }
         });
 
         return groupings;
     }
 
-    private static double rateGrouping(Grouping grouping, HashMap<Long, Double> strengths) {
-        return Math.abs(rateTeam(grouping.team1, strengths) - rateTeam(grouping.team2, strengths));
+    private static double rateGrouping(Grouping grouping, HashMap<Long, PlayerStats> stats) {
+        return Math.abs(rateTeam(grouping.team1, stats) - rateTeam(grouping.team2, stats));
     }
 
-    private static double rateTeam(List<Player> team, HashMap<Long, Double> strengths) {
-        double teamRating = 0;
+    private static double rateTeam(List<Player> team, HashMap<Long, PlayerStats> stats) {
+        PlayerStats total = new PlayerStats();
         for (Player player: team) {
-            teamRating += strengths.get(player.id);
+            total.pointsFor += stats.get(player.id).pointsFor;
+            total.pointsAgainst += stats.get(player.id).pointsAgainst;
         }
-        return teamRating;
+        return total.getStrength(team.size());
     }
 }

@@ -15,18 +15,26 @@ public class PlayerStatsTest {
     @Test
     public void strengthUsesOnlyRecordedPointsAndDefaultsToNeutralWithoutPoints() {
         PlayerStats stats = new PlayerStats();
-        assertEquals(0.5, stats.getStrength(), 1e-12);
+        assertEquals(0.5, stats.getStrength(1), 1e-12);
+        assertEquals(2.0, stats.getStrength(4), 1e-12);
+        assertEquals(0.0, stats.getStrength(0), 1e-12);
         stats.pointsFor = 3;
-        assertEquals(1.0, stats.getStrength(), 1e-12);
+        assertEquals(1.0, stats.getStrength(1), 1e-12);
         stats.pointsFor = 0;
         stats.pointsAgainst = 3;
-        assertEquals(0.0, stats.getStrength(), 1e-12);
+        assertEquals(0.0, stats.getStrength(1), 1e-12);
         stats.pointsFor = 6;
         stats.pointsAgainst = 4;
-        assertEquals(0.6, stats.getStrength(), 1e-12);
+        assertEquals(0.6, stats.getStrength(1), 1e-12);
         stats.pointsFor = 60;
         stats.pointsAgainst = 40;
-        assertEquals(0.6, stats.getStrength(), 1e-12);
+        assertEquals(0.6, stats.getStrength(1), 1e-12);
+        stats.pointsFor = 31;
+        stats.pointsAgainst = 36;
+        assertEquals(62.0 / 67, stats.getStrength(2), 1e-12);
+        stats.pointsFor = 141;
+        stats.pointsAgainst = 145;
+        assertEquals(564.0 / 143, stats.getStrength(8), 1e-12);
     }
 
     @Test

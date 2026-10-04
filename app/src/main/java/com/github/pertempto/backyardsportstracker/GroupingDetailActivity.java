@@ -158,20 +158,18 @@ public class GroupingDetailActivity extends AppCompatActivity {
 
             PlayerStats.sortPlayers(grouping.team1, games, grouping.sport);
             for (Player player:grouping.team1) {
-                PlayerStats stats = PlayerStats.fromGames(player, games, grouping.sport);
                 TextView textView = new TextView(this);
                 textView.setGravity(Gravity.CENTER_HORIZONTAL);
                 textView.setTextSize(16);
-                textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
+                textView.setText(player.name);
                 team1.addView(textView);
             }
             PlayerStats.sortPlayers(grouping.team2, games, grouping.sport);
             for (Player player:grouping.team2) {
-                PlayerStats stats = PlayerStats.fromGames(player, games, grouping.sport);
                 TextView textView = new TextView(this);
                 textView.setGravity(Gravity.CENTER_HORIZONTAL);
                 textView.setTextSize(16);
-                textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
+                textView.setText(player.name);
                 team2.addView(textView);
             }
 
@@ -179,8 +177,10 @@ public class GroupingDetailActivity extends AppCompatActivity {
             TextView team2RatingText = findViewById(R.id.team2Rating);
             PlayerStats stats1 = PlayerStats.fromTeam(grouping.team1, games, grouping.sport);
             PlayerStats stats2 = PlayerStats.fromTeam(grouping.team2, games, grouping.sport);
-            team1RatingText.setText(getString(R.string.pointsRecordFormat, stats1.pointsFor, stats1.pointsAgainst));
-            team2RatingText.setText(getString(R.string.pointsRecordFormat, stats2.pointsFor, stats2.pointsAgainst));
+            team1RatingText.setGravity(Gravity.CENTER);
+            team2RatingText.setGravity(Gravity.CENTER);
+            team1RatingText.setText(getString(R.string.teamStrengthFormat, stats1.getStrength(grouping.team1.size())));
+            team2RatingText.setText(getString(R.string.teamStrengthFormat, stats2.getStrength(grouping.team2.size())));
             findViewById(R.id.team1ExpectedScore).setVisibility(View.GONE);
             findViewById(R.id.team2ExpectedScore).setVisibility(View.GONE);
         }

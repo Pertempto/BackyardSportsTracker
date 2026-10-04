@@ -249,12 +249,11 @@ public class NewGroupingActivity extends AppCompatActivity {
         team1.removeAllViews();
         PlayerStats.sortPlayers(getGrouping().team1, games, sport);
         for (final Player player : getGrouping().team1) {
-            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
+            textView.setText(player.name);
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -270,12 +269,11 @@ public class NewGroupingActivity extends AppCompatActivity {
         team2.removeAllViews();
         PlayerStats.sortPlayers(getGrouping().team2, games, sport);
         for (final Player player : getGrouping().team2) {
-            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
+            textView.setText(player.name);
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -291,8 +289,10 @@ public class NewGroupingActivity extends AppCompatActivity {
         TextView team2RatingText = findViewById(R.id.team2Rating);
         PlayerStats stats1 = PlayerStats.fromTeam(getGrouping().team1, games, sport);
         PlayerStats stats2 = PlayerStats.fromTeam(getGrouping().team2, games, sport);
-        team1RatingText.setText(getString(R.string.pointsRecordFormat, stats1.pointsFor, stats1.pointsAgainst));
-        team2RatingText.setText(getString(R.string.pointsRecordFormat, stats2.pointsFor, stats2.pointsAgainst));
+        team1RatingText.setGravity(Gravity.CENTER);
+        team2RatingText.setGravity(Gravity.CENTER);
+        team1RatingText.setText(getString(R.string.teamStrengthFormat, stats1.getStrength(getGrouping().team1.size())));
+        team2RatingText.setText(getString(R.string.teamStrengthFormat, stats2.getStrength(getGrouping().team2.size())));
         findViewById(R.id.team1ExpectedScore).setVisibility(View.GONE);
         findViewById(R.id.team2ExpectedScore).setVisibility(View.GONE);
     }

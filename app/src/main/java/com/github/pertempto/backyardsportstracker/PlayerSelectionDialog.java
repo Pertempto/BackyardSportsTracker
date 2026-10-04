@@ -26,9 +26,7 @@ final class PlayerSelectionDialog {
         CharSequence[] labels = new CharSequence[players.size()];
         for (int i = 0; i < players.size(); i++) {
             Player player = players.get(i);
-            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
-            labels[i] = context.getString(R.string.nameAndPointsFormat,
-                    player.name, stats.pointsFor, stats.pointsAgainst);
+            labels[i] = player.name;
         }
 
         final boolean[] checkedPlayers = new boolean[players.size()];

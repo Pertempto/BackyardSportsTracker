@@ -190,20 +190,18 @@ public class GameDetailActivity extends AppCompatActivity {
 
             PlayerStats.sortPlayers(game.team1, games, game.sport);
             for (Player player: game.team1) {
-                PlayerStats stats = PlayerStats.fromGames(player, games, game.sport);
                 TextView textView = new TextView(this);
                 textView.setGravity(Gravity.CENTER_HORIZONTAL);
                 textView.setTextSize(16);
-                textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
+                textView.setText(player.name);
                 team1.addView(textView);
             }
             PlayerStats.sortPlayers(game.team2, games, game.sport);
             for (Player player: game.team2) {
-                PlayerStats stats = PlayerStats.fromGames(player, games, game.sport);
                 TextView textView = new TextView(this);
                 textView.setGravity(Gravity.CENTER_HORIZONTAL);
                 textView.setTextSize(16);
-                textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
+                textView.setText(player.name);
                 team2.addView(textView);
             }
 
@@ -211,8 +209,10 @@ public class GameDetailActivity extends AppCompatActivity {
             TextView team2RatingText = findViewById(R.id.team2Rating);
             PlayerStats stats1 = PlayerStats.fromTeam(game.team1, games, game.sport);
             PlayerStats stats2 = PlayerStats.fromTeam(game.team2, games, game.sport);
-            team1RatingText.setText(getString(R.string.pointsRecordFormat, stats1.pointsFor, stats1.pointsAgainst));
-            team2RatingText.setText(getString(R.string.pointsRecordFormat, stats2.pointsFor, stats2.pointsAgainst));
+            team1RatingText.setGravity(Gravity.CENTER);
+            team2RatingText.setGravity(Gravity.CENTER);
+            team1RatingText.setText(getString(R.string.teamStrengthFormat, stats1.getStrength(game.team1.size())));
+            team2RatingText.setText(getString(R.string.teamStrengthFormat, stats2.getStrength(game.team2.size())));
         } else {
             Toast.makeText(this, R.string.gameUnavailable, Toast.LENGTH_SHORT).show();
             finish();

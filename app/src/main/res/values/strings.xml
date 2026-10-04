@@ -23,6 +23,7 @@
     <string name="pointsForFormat">For: %1$d</string>
     <string name="pointsAgainstFormat">Against: %1$d</string>
     <string name="pointsRecordFormat">%1$d-%2$d</string>
+    <string name="teamStrengthFormat">%1$.3f</string>
     <string name="nameAndPointsFormat">%1$s (%2$d-%3$d)</string>
     <string name="teammatesTitle">Played with:</string>
     <string name="teammatesDescription">Points for-against in games on the same team (all sports).</string>

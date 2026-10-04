@@ -341,12 +341,11 @@ public class NewGameActivity extends AppCompatActivity {
         PlayerStats.sortPlayers(teams.get(0), games, sport);
         for (final Player player : teams.get(0)) {
             Log.d(LOG_TAG, String.format("Player on team1: %s", player));
-            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
+            textView.setText(player.name);
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -363,12 +362,11 @@ public class NewGameActivity extends AppCompatActivity {
         PlayerStats.sortPlayers(teams.get(1), games, sport);
         for (final Player player : teams.get(1)) {
             Log.d(LOG_TAG, String.format("Player on team2: %s", player));
-            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
+            textView.setText(player.name);
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -384,7 +382,9 @@ public class NewGameActivity extends AppCompatActivity {
         TextView team2RatingText = findViewById(R.id.team2Rating);
         PlayerStats stats1 = PlayerStats.fromTeam(teams.get(0), games, sport);
         PlayerStats stats2 = PlayerStats.fromTeam(teams.get(1), games, sport);
-        team1RatingText.setText(getString(R.string.pointsRecordFormat, stats1.pointsFor, stats1.pointsAgainst));
-        team2RatingText.setText(getString(R.string.pointsRecordFormat, stats2.pointsFor, stats2.pointsAgainst));
+        team1RatingText.setGravity(Gravity.CENTER);
+        team2RatingText.setGravity(Gravity.CENTER);
+        team1RatingText.setText(getString(R.string.teamStrengthFormat, stats1.getStrength(teams.get(0).size())));
+        team2RatingText.setText(getString(R.string.teamStrengthFormat, stats2.getStrength(teams.get(1).size())));
     }
 }

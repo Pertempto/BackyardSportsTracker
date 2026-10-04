@@ -12,14 +12,16 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class TeamBalancingTest {
     @Test
-    public void screenshotRosterProducesOnlyFiveVersusFiveAndRanksByScoringShare() {
+    public void screenshotRosterIncludesAllSplitsAndRanksByCombinedPointsTimesTeamSize() {
         int[][] points = {{14, 8}, {17, 28}, {20, 9}, {16, 6}, {13, 9},
                 {24, 21}, {23, 22}, {17, 16}, {14, 31}, {14, 31}};
         ArrayList<Player> players = new ArrayList<>();
@@ -32,45 +34,63 @@ public class TeamBalancingTest {
                     points[i][0], points[i][1], Arrays.asList(player), Arrays.asList(opponent)));
         }
         ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
-        assertEquals(126, groupings.size());
-        // Independently calculated scoring shares from the screenshot's recorded totals.
-        double[] strengths = {14.0 / 22, 17.0 / 45, 20.0 / 29, 16.0 / 22, 13.0 / 22,
-                24.0 / 45, 23.0 / 45, 17.0 / 33, 14.0 / 45, 14.0 / 45};
+        assertEquals(511, groupings.size());
         double previousGap = -1;
         for (Grouping grouping : groupings) {
-            assertEquals(5, grouping.team1.size());
-            assertEquals(5, grouping.team2.size());
-            double first = sum(grouping.team1, strengths);
-            double second = sum(grouping.team2, strengths);
+            assertTrue(!grouping.team1.isEmpty() && !grouping.team2.isEmpty());
+            assertEquals(10, grouping.team1.size() + grouping.team2.size());
+            double first = strength(grouping.team1, points);
+            double second = strength(grouping.team2, points);
             assertTrue(first <= second);
             double gap = second - first;
             assertTrue(gap + 1e-12 >= previousGap);
             previousGap = gap;
         }
         Grouping best = groupings.get(0);
-        assertEquals(0.007836990595611049,
-                sum(best.team2, strengths) - sum(best.team1, strengths), 1e-12);
+        assertEquals(0.006346916696718274,
+                strength(best.team2, points) - strength(best.team1, points), 1e-12);
+        assertEquals(4, Math.min(best.team1.size(), best.team2.size()));
+        assertEquals(6, Math.max(best.team1.size(), best.team2.size()));
     }
 
     @Test
-    public void oddRosterSizesDifferByOnlyOneEvenWithoutHistory() {
+    public void allNonemptySplitsAppearExactlyOnceEvenWithoutHistory() {
         ArrayList<Player> players = new ArrayList<>(Arrays.asList(
                 player(1), player(2), player(3), player(4), player(5)));
         ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE,
                 Collections.<Game>emptyList());
-        assertEquals(10, groupings.size());
+        assertEquals(15, groupings.size());
+        Set<Set<Long>> seen = new HashSet<>();
         for (Grouping grouping : groupings) {
-            assertEquals(1, Math.abs(grouping.team1.size() - grouping.team2.size()));
+            assertTrue(!grouping.team1.isEmpty() && !grouping.team2.isEmpty());
             assertEquals(5, grouping.team1.size() + grouping.team2.size());
+            Set<Long> all = new HashSet<>();
+            for (Player player : grouping.team1) {
+                assertTrue(all.add(player.id));
+            }
+            for (Player player : grouping.team2) {
+                assertTrue(all.add(player.id));
+            }
+            assertEquals(new HashSet<>(Arrays.asList(1L, 2L, 3L, 4L, 5L)), all);
+            // Anchor player 1 to avoid counting a team swap as a new split.
+            List<Player> anchored = grouping.team1.contains(player(1)) ? grouping.team1 : grouping.team2;
+            Set<Long> ids = new HashSet<>();
+            for (Player player : anchored) {
+                ids.add(player.id);
+            }
+            assertTrue(seen.add(ids));
         }
+        assertEquals(15, seen.size());
     }
 
-    private static double sum(List<Player> players, double[] strengths) {
-        double total = 0;
+    private static double strength(List<Player> players, int[][] points) {
+        long scored = 0;
+        long conceded = 0;
         for (Player player : players) {
-            total += strengths[(int) player.id - 1];
+            scored += points[(int) player.id - 1][0];
+            conceded += points[(int) player.id - 1][1];
         }
-        return total;
+        return (double) scored / (scored + conceded) * players.size();
     }
 
     private static Player player(long id) {
