@@ -33,9 +33,9 @@ public class TeamBalancingTest {
         }
         ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
         assertEquals(126, groupings.size());
-        // Independently calculated strengths from the screenshot's totals, with a 3-3 prior.
-        double[] strengths = {17.0 / 28, 20.0 / 51, 23.0 / 35, 19.0 / 28, 16.0 / 28,
-                27.0 / 51, 26.0 / 51, 20.0 / 39, 17.0 / 51, 17.0 / 51};
+        // Independently calculated scoring shares from the screenshot's recorded totals.
+        double[] strengths = {14.0 / 22, 17.0 / 45, 20.0 / 29, 16.0 / 22, 13.0 / 22,
+                24.0 / 45, 23.0 / 45, 17.0 / 33, 14.0 / 45, 14.0 / 45};
         double previousGap = -1;
         for (Grouping grouping : groupings) {
             assertEquals(5, grouping.team1.size());
@@ -48,7 +48,7 @@ public class TeamBalancingTest {
             previousGap = gap;
         }
         Grouping best = groupings.get(0);
-        assertEquals(0.0027364792070674326,
+        assertEquals(0.007836990595611049,
                 sum(best.team2, strengths) - sum(best.team1, strengths), 1e-12);
     }
 

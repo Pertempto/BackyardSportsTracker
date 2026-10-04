@@ -16,10 +16,9 @@ public class PlayerStats {
         return pointsFor - pointsAgainst;
     }
 
-    public double getStrength(String sport) {
-        // One neutral game's worth of points tempers small samples and gives new players 0.5.
-        double priorPoints = Sports.targetScores.get(sport);
-        return (pointsFor + priorPoints) / (pointsFor + (double) pointsAgainst + 2 * priorPoints);
+    public double getStrength() {
+        double totalPoints = pointsFor + (double) pointsAgainst;
+        return totalPoints == 0 ? 0.5 : pointsFor / totalPoints;
     }
 
     public static HashMap<Player, PlayerStats> withTeammates(Player player, List<Game> games) {

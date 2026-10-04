@@ -13,21 +13,20 @@ import static org.junit.Assert.assertFalse;
 
 public class PlayerStatsTest {
     @Test
-    public void strengthStartsNeutralAndTempersSmallSamplesForEachSport() {
+    public void strengthUsesOnlyRecordedPointsAndDefaultsToNeutralWithoutPoints() {
         PlayerStats stats = new PlayerStats();
-        assertEquals(0.5, stats.getStrength(Sports.ULTIMATE), 1e-12);
+        assertEquals(0.5, stats.getStrength(), 1e-12);
         stats.pointsFor = 3;
-        assertEquals(2.0 / 3, stats.getStrength(Sports.ULTIMATE), 1e-12);
-        stats.pointsFor = 30;
-        assertEquals(11.0 / 12, stats.getStrength(Sports.ULTIMATE), 1e-12);
+        assertEquals(1.0, stats.getStrength(), 1e-12);
         stats.pointsFor = 0;
         stats.pointsAgainst = 3;
-        assertEquals(1.0 / 3, stats.getStrength(Sports.ULTIMATE), 1e-12);
-        stats.pointsFor = 25;
-        stats.pointsAgainst = 0;
-        assertEquals(2.0 / 3, stats.getStrength(Sports.SPIKEBALL), 1e-12);
-        stats.pointsFor = 10;
-        assertEquals(2.0 / 3, stats.getStrength(Sports.BASKETBALL), 1e-12);
+        assertEquals(0.0, stats.getStrength(), 1e-12);
+        stats.pointsFor = 6;
+        stats.pointsAgainst = 4;
+        assertEquals(0.6, stats.getStrength(), 1e-12);
+        stats.pointsFor = 60;
+        stats.pointsAgainst = 40;
+        assertEquals(0.6, stats.getStrength(), 1e-12);
     }
 
     @Test

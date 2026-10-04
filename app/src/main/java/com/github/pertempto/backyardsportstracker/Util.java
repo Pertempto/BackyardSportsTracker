@@ -34,7 +34,7 @@ public class Util {
         PlayerStats.sortPlayers(players, games, sport);
         final HashMap<Long, Double> strengths = new HashMap<>();
         for (Player player : players) {
-            strengths.put(player.id, PlayerStats.fromGames(player, games, sport).getStrength(sport));
+            strengths.put(player.id, PlayerStats.fromGames(player, games, sport).getStrength());
         }
 
         ArrayList<Grouping> groupings = new ArrayList<>();
