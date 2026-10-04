@@ -36,6 +36,17 @@ public class Util {
         for (Player player : players) {
             stats.put(player.id, PlayerStats.fromGames(player, games, sport));
         }
+        final HashMap<Long, HashMap<Long, Integer>> pairGames = new HashMap<>();
+        for (Player player : players) {
+            pairGames.put(player.id, new HashMap<Long, Integer>());
+        }
+        for (Game game : games) {
+            if (game.deleted || (sport != null && !sport.equals(game.sport))) {
+                continue;
+            }
+            countPairGames(game.team1, pairGames);
+            countPairGames(game.team2, pairGames);
+        }
 
         ArrayList<Grouping> groupings = new ArrayList<>();
         if (players.size() == 0) {
@@ -72,15 +83,51 @@ public class Util {
         Collections.sort(groupings, new Comparator<Grouping>() {
             @Override
             public int compare(Grouping o1, Grouping o2) {
-                return Double.compare(rateGrouping(o1, stats), rateGrouping(o2, stats));
+                return Double.compare(rateGrouping(o1, stats, pairGames),
+                        rateGrouping(o2, stats, pairGames));
             }
         });
 
         return groupings;
     }
 
-    private static double rateGrouping(Grouping grouping, HashMap<Long, PlayerStats> stats) {
-        return Math.abs(rateTeam(grouping.team1, stats) - rateTeam(grouping.team2, stats));
+    private static void countPairGames(List<Player> team,
+                                       HashMap<Long, HashMap<Long, Integer>> pairGames) {
+        for (int i = 0; i < team.size(); i++) {
+            for (int j = i + 1; j < team.size(); j++) {
+                long first = Math.min(team.get(i).id, team.get(j).id);
+                long second = Math.max(team.get(i).id, team.get(j).id);
+                if (!pairGames.containsKey(first) || !pairGames.containsKey(second)) {
+                    continue;
+                }
+                HashMap<Long, Integer> counts = pairGames.get(first);
+                Integer count = counts.get(second);
+                counts.put(second, count == null ? 1 : count + 1);
+            }
+        }
+    }
+
+    private static long familiarity(List<Player> team,
+                                    HashMap<Long, HashMap<Long, Integer>> pairGames) {
+        long total = 0;
+        for (int i = 0; i < team.size(); i++) {
+            for (int j = i + 1; j < team.size(); j++) {
+                long first = Math.min(team.get(i).id, team.get(j).id);
+                long second = Math.max(team.get(i).id, team.get(j).id);
+                Integer count = pairGames.get(first).get(second);
+                if (count != null) {
+                    total += count;
+                }
+            }
+        }
+        return total;
+    }
+
+    private static double rateGrouping(Grouping grouping, HashMap<Long, PlayerStats> stats,
+                                       HashMap<Long, HashMap<Long, Integer>> pairGames) {
+        return Math.abs(rateTeam(grouping.team1, stats) - rateTeam(grouping.team2, stats))
+                + 0.01 * (familiarity(grouping.team1, pairGames)
+                + familiarity(grouping.team2, pairGames));
     }
 
     private static double rateTeam(List<Player> team, HashMap<Long, PlayerStats> stats) {

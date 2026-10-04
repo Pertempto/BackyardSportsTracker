@@ -57,6 +57,66 @@ public class TeamBalancingTest {
     }
 
     @Test
+    public void familiarityUsesOneHundredthPerSharedGameWithoutChangingDisplayedStrength() {
+        Player first = player(1);
+        Player second = player(2);
+        Player third = player(3);
+        Player fourth = player(4);
+        Player opponent = player(99);
+        ArrayList<Player> players = new ArrayList<>(Arrays.asList(first, second, third, fourth));
+        List<Game> games = new ArrayList<>();
+        int[][] scores = {{103, 97}, {1, 1}, {1, 1}, {97, 103}};
+        for (int i = 0; i < players.size(); i++) {
+            games.add(game(Sports.ULTIMATE, scores[i][0], scores[i][1],
+                    Arrays.asList(players.get(i)), Arrays.asList(opponent)));
+        }
+        // The balanced split has two familiar pairs: cost 0 + 0.01 * 2 = 0.02.
+        // Fresh 2v2 splits have a strength gap of 0.03, so balance wins initially.
+        games.add(game(Sports.ULTIMATE, 0, 0,
+                Arrays.asList(first, fourth), Arrays.asList(second, third)));
+        for (int i = 0; i < 3; i++) {
+            games.add(game(Sports.BASKETBALL, 0, 0,
+                    Arrays.asList(first, fourth), Arrays.asList(second, third)));
+            Game deleted = game(Sports.ULTIMATE, 0, 0,
+                    Arrays.asList(first, fourth), Arrays.asList(second, third));
+            deleted.deleted = true;
+            games.add(deleted);
+        }
+        ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
+        assertEquals(7, groupings.size());
+        assertTrue(together(groupings.get(0), first, fourth));
+        assertCostsSorted(groupings, games);
+
+        // The same pairs on the opposite sides, loaded as separate objects with equal IDs.
+        // Two games mean cost 0.04: now a fresh split with gap 0.03 wins.
+        games.add(game(Sports.ULTIMATE, 0, 0,
+                Arrays.asList(player(3), player(2)), Arrays.asList(player(4), player(1))));
+        groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
+        Grouping best = groupings.get(0);
+        assertTrue(!together(best, first, fourth));
+        assertEquals(0.03, Math.abs(PlayerStats.teamStrength(best.team1, games, Sports.ULTIMATE)
+                - PlayerStats.teamStrength(best.team2, games, Sports.ULTIMATE)), 1e-12);
+        assertCostsSorted(groupings, games);
+    }
+
+    @Test
+    public void countsEveryUnorderedPairInLargerTeamsAndStillIncludesUnequalSplits() {
+        ArrayList<Player> players = new ArrayList<>(Arrays.asList(
+                player(1), player(2), player(3), player(4), player(5)));
+        List<Game> games = Arrays.asList(game(Sports.ULTIMATE, 0, 0,
+                Arrays.asList(player(3), player(1), player(2), player(99)),
+                Arrays.asList(player(5), player(4))));
+        ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
+        assertEquals(15, groupings.size());
+        assertCostsSorted(groupings, games);
+        boolean includesOneVsFour = false;
+        for (Grouping grouping : groupings) {
+            includesOneVsFour |= Math.min(grouping.team1.size(), grouping.team2.size()) == 1;
+        }
+        assertTrue(includesOneVsFour);
+    }
+
+    @Test
     public void allNonemptySplitsAppearExactlyOnceEvenWithoutHistory() {
         ArrayList<Player> players = new ArrayList<>(Arrays.asList(
                 player(1), player(2), player(3), player(4), player(5)));
@@ -84,6 +144,46 @@ public class TeamBalancingTest {
             assertTrue(seen.add(ids));
         }
         assertEquals(15, seen.size());
+    }
+
+    private static boolean together(Grouping grouping, Player first, Player second) {
+        return (grouping.team1.contains(first) && grouping.team1.contains(second))
+                || (grouping.team2.contains(first) && grouping.team2.contains(second));
+    }
+
+    private static void assertCostsSorted(List<Grouping> groupings, List<Game> games) {
+        double previous = -1;
+        for (Grouping grouping : groupings) {
+            long familiar = 0;
+            for (Game game : games) {
+                if (game.deleted || !Sports.ULTIMATE.equals(game.sport)) {
+                    continue;
+                }
+                for (List<Player> current : Arrays.asList(grouping.team1, grouping.team2)) {
+                    for (List<Player> historical : Arrays.asList(game.team1, game.team2)) {
+                        int shared = 0;
+                        for (Player player : current) {
+                            if (historical.contains(player)) {
+                                shared++;
+                            }
+                        }
+                        familiar += shared * (shared - 1) / 2;
+                    }
+                }
+            }
+            double first = PlayerStats.teamStrength(grouping.team1, games, Sports.ULTIMATE);
+            double second = PlayerStats.teamStrength(grouping.team2, games, Sports.ULTIMATE);
+            assertTrue(first <= second);
+            double cost = Math.abs(first - second) + familiar / 100.0;
+            assertTrue(cost + 1e-12 >= previous);
+            previous = cost;
+        }
+    }
+
+    private static Game game(String sport, int scored, int conceded,
+                             List<Player> first, List<Player> second) {
+        return new Game(sport, new Date(0), new HashMap<Long, Double>(),
+                scored, conceded, first, second);
     }
 
     private static double strength(List<Player> players, int[][] points) {
