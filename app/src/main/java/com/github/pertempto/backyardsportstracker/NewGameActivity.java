@@ -380,11 +380,11 @@ public class NewGameActivity extends AppCompatActivity {
 
         TextView team1RatingText = findViewById(R.id.team1Rating);
         TextView team2RatingText = findViewById(R.id.team2Rating);
-        PlayerStats stats1 = PlayerStats.fromTeam(teams.get(0), games, sport);
-        PlayerStats stats2 = PlayerStats.fromTeam(teams.get(1), games, sport);
+        double strength1 = PlayerStats.teamStrength(teams.get(0), games, sport);
+        double strength2 = PlayerStats.teamStrength(teams.get(1), games, sport);
         team1RatingText.setGravity(Gravity.CENTER);
         team2RatingText.setGravity(Gravity.CENTER);
-        team1RatingText.setText(getString(R.string.teamStrengthFormat, stats1.getStrength(teams.get(0).size())));
-        team2RatingText.setText(getString(R.string.teamStrengthFormat, stats2.getStrength(teams.get(1).size())));
+        team1RatingText.setText(getString(R.string.teamStrengthFormat, strength1));
+        team2RatingText.setText(getString(R.string.teamStrengthFormat, strength2));
     }
 }

@@ -207,12 +207,12 @@ public class GameDetailActivity extends AppCompatActivity {
 
             TextView team1RatingText = findViewById(R.id.team1Rating);
             TextView team2RatingText = findViewById(R.id.team2Rating);
-            PlayerStats stats1 = PlayerStats.fromTeam(game.team1, games, game.sport);
-            PlayerStats stats2 = PlayerStats.fromTeam(game.team2, games, game.sport);
+            double strength1 = PlayerStats.teamStrength(game.team1, games, game.sport);
+            double strength2 = PlayerStats.teamStrength(game.team2, games, game.sport);
             team1RatingText.setGravity(Gravity.CENTER);
             team2RatingText.setGravity(Gravity.CENTER);
-            team1RatingText.setText(getString(R.string.teamStrengthFormat, stats1.getStrength(game.team1.size())));
-            team2RatingText.setText(getString(R.string.teamStrengthFormat, stats2.getStrength(game.team2.size())));
+            team1RatingText.setText(getString(R.string.teamStrengthFormat, strength1));
+            team2RatingText.setText(getString(R.string.teamStrengthFormat, strength2));
         } else {
             Toast.makeText(this, R.string.gameUnavailable, Toast.LENGTH_SHORT).show();
             finish();

@@ -3,6 +3,7 @@ package com.github.pertempto.backyardsportstracker;
 import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Grouping;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
 import org.junit.Test;
@@ -21,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 public class TeamBalancingTest {
     @Test
-    public void screenshotRosterIncludesAllSplitsAndRanksByCombinedPointsTimesTeamSize() {
+    public void screenshotRosterIncludesAllSplitsAndRanksBySumOfIndividualShares() {
         int[][] points = {{14, 8}, {17, 28}, {20, 9}, {16, 6}, {13, 9},
                 {24, 21}, {23, 22}, {17, 16}, {14, 31}, {14, 31}};
         ArrayList<Player> players = new ArrayList<>();
@@ -41,16 +42,18 @@ public class TeamBalancingTest {
             assertEquals(10, grouping.team1.size() + grouping.team2.size());
             double first = strength(grouping.team1, points);
             double second = strength(grouping.team2, points);
+            assertEquals(first, PlayerStats.teamStrength(grouping.team1, games, Sports.ULTIMATE), 1e-12);
+            assertEquals(second, PlayerStats.teamStrength(grouping.team2, games, Sports.ULTIMATE), 1e-12);
             assertTrue(first <= second);
             double gap = second - first;
             assertTrue(gap + 1e-12 >= previousGap);
             previousGap = gap;
         }
         Grouping best = groupings.get(0);
-        assertEquals(0.006346916696718274,
+        assertEquals(0.007836990595611049,
                 strength(best.team2, points) - strength(best.team1, points), 1e-12);
-        assertEquals(4, Math.min(best.team1.size(), best.team2.size()));
-        assertEquals(6, Math.max(best.team1.size(), best.team2.size()));
+        assertEquals(5, best.team1.size());
+        assertEquals(5, best.team2.size());
     }
 
     @Test
@@ -84,13 +87,12 @@ public class TeamBalancingTest {
     }
 
     private static double strength(List<Player> players, int[][] points) {
-        long scored = 0;
-        long conceded = 0;
+        double strength = 0;
         for (Player player : players) {
-            scored += points[(int) player.id - 1][0];
-            conceded += points[(int) player.id - 1][1];
+            int[] record = points[(int) player.id - 1];
+            strength += (double) record[0] / (record[0] + record[1]);
         }
-        return (double) scored / (scored + conceded) * players.size();
+        return strength;
     }
 
     private static Player player(long id) {

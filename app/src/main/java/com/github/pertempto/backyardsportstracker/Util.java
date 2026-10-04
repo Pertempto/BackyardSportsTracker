@@ -84,11 +84,10 @@ public class Util {
     }
 
     private static double rateTeam(List<Player> team, HashMap<Long, PlayerStats> stats) {
-        PlayerStats total = new PlayerStats();
+        double strength = 0;
         for (Player player: team) {
-            total.pointsFor += stats.get(player.id).pointsFor;
-            total.pointsAgainst += stats.get(player.id).pointsAgainst;
+            strength += stats.get(player.id).getStrength();
         }
-        return total.getStrength(team.size());
+        return strength;
     }
 }

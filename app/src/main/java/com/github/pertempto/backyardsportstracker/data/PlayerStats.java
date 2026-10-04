@@ -16,9 +16,17 @@ public class PlayerStats {
         return pointsFor - pointsAgainst;
     }
 
-    public double getStrength(int playerCount) {
+    public double getStrength() {
         double totalPoints = pointsFor + (double) pointsAgainst;
-        return (totalPoints == 0 ? 0.5 : pointsFor / totalPoints) * playerCount;
+        return totalPoints == 0 ? 0.5 : pointsFor / totalPoints;
+    }
+
+    public static double teamStrength(List<Player> team, List<Game> games, String sport) {
+        double strength = 0;
+        for (Player player : team) {
+            strength += fromGames(player, games, sport).getStrength();
+        }
+        return strength;
     }
 
     public static HashMap<Player, PlayerStats> withTeammates(Player player, List<Game> games) {
