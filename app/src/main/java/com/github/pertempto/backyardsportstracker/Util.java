@@ -4,12 +4,15 @@ import android.os.Build;
 import android.text.Html;
 import android.text.Spanned;
 
+import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Grouping;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 public class Util {
@@ -26,20 +29,13 @@ public class Util {
         }
     }
 
-    public static ArrayList<Grouping> generateGroupings(ArrayList<Player> players, final String sport) {
-        Collections.sort(players, new Comparator<Player>() {
-            @Override
-            public int compare(Player o1, Player o2) {
-                double diff = o2.ratings.get(sport)-o1.ratings.get(sport);
-                if (diff > 0) {
-                    return 1;
-                } else if (diff < 0) {
-                    return -1;
-                } else {
-                    return 0;
-                }
-            }
-        });
+    public static ArrayList<Grouping> generateGroupings(ArrayList<Player> players, final String sport,
+                                                       List<Game> games) {
+        PlayerStats.sortPlayers(players, games, sport);
+        final HashMap<Long, Long> differences = new HashMap<>();
+        for (Player player : players) {
+            differences.put(player.id, PlayerStats.fromGames(player, games, sport).getDifference());
+        }
 
         ArrayList<Grouping> groupings = new ArrayList<>();
         if (players.size() == 0) {
@@ -67,14 +63,7 @@ public class Util {
             Collections.sort(teams, new Comparator<ArrayList<Player>>() {
                 @Override
                 public int compare(ArrayList<Player> o1, ArrayList<Player> o2) {
-                    double ratingDiff = rateTeam(o1, sport) - rateTeam(o2, sport);
-                    if (ratingDiff < 0) {
-                        return -1;
-                    } else if (ratingDiff > 0) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
+                    return Long.compare(rateTeam(o1, differences), rateTeam(o2, differences));
                 }
             });
             groupings.add(new Grouping(sport, teams.get(0), teams.get(1)));
@@ -83,30 +72,21 @@ public class Util {
         Collections.sort(groupings, new Comparator<Grouping>() {
             @Override
             public int compare(Grouping o1, Grouping o2) {
-                double fairnessDiff = rateGrouping(o1) - rateGrouping(o2);
-                if (fairnessDiff < 0) {
-                    return 1;
-                } else if (fairnessDiff > 0) {
-                    return -1;
-                } else {
-                    return 0;
-                }
+                return Long.compare(rateGrouping(o1, differences), rateGrouping(o2, differences));
             }
         });
 
         return groupings;
     }
 
-    private static double rateGrouping(Grouping grouping) {
-        double team1Rating = grouping.getTeam1Rating();
-        double team2Rating = grouping.getTeam2Rating();
-        return Math.min(team1Rating, team2Rating) / (team1Rating + team2Rating);
+    private static long rateGrouping(Grouping grouping, HashMap<Long, Long> differences) {
+        return Math.abs(rateTeam(grouping.team1, differences) - rateTeam(grouping.team2, differences));
     }
 
-    public static double rateTeam(List<Player> team, String sport) {
-        double teamRating = 0;
+    private static long rateTeam(List<Player> team, HashMap<Long, Long> differences) {
+        long teamRating = 0;
         for (Player player: team) {
-            teamRating += player.ratings.get(sport);
+            teamRating += differences.get(player.id);
         }
         return teamRating;
     }

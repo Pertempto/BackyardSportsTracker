@@ -2,7 +2,6 @@ package com.github.pertempto.backyardsportstracker;
 
 import android.app.Activity;
 import android.arch.lifecycle.ViewModelProviders;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
@@ -14,8 +13,6 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -24,10 +21,13 @@ import com.github.pertempto.backyardsportstracker.data.BackgroundTask;
 import com.github.pertempto.backyardsportstracker.data.DataViewModel;
 import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 public class PlayerDetailActivity extends AppCompatActivity {
@@ -81,10 +81,11 @@ public class PlayerDetailActivity extends AppCompatActivity {
             @Override
             public void call() {
                 final Player player = dataViewModel.getPlayer(playerId);
+                final List<Game> games = dataViewModel.getPlayerGames(playerId);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        setPlayer(player);
+                        setPlayer(player, games);
                     }
                 });
             }
@@ -119,75 +120,59 @@ public class PlayerDetailActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void setPlayer(final Player player) {
+    private void setPlayer(final Player player, List<Game> games) {
         this.player = player;
 
         if (player != null) {
             TextView textView = findViewById(R.id.name);
             textView.setText(player.name);
 
-            final LinearLayout ratingsLayout = findViewById(R.id.ratingsLayout);
-            ratingsLayout.removeAllViews();
-            ArrayList<String> sports = new ArrayList<>(player.ratings.keySet());
-            for (String sport: sports) {
-                final ConstraintLayout row = (ConstraintLayout) getLayoutInflater().inflate(R.layout.ratings_row, null);
+            PlayerStats stats = PlayerStats.fromGames(player, games, null);
+            TextView pointsFor = findViewById(R.id.pointsFor);
+            pointsFor.setText(getString(R.string.pointsForFormat, stats.pointsFor));
+            TextView pointsAgainst = findViewById(R.id.pointsAgainst);
+            pointsAgainst.setText(getString(R.string.pointsAgainstFormat, stats.pointsAgainst));
 
-                TextView ratingText = row.findViewById(R.id.rating);
-                ratingText.setText(String.format("%.2f", player.ratings.get(sport)));
-
-                ImageView iconView = row.findViewById(R.id.icon);
-                iconView.setImageResource(Sports.icons.get(sport));
-
-                ImageButton deleteButton = row.findViewById(R.id.deleteButton);
-                deleteButton.setVisibility(View.GONE);
-
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        ratingsLayout.addView(row);
-                    }
-                });
+            LinearLayout teammatesList = findViewById(R.id.teammates);
+            teammatesList.removeAllViews();
+            final HashMap<Player, PlayerStats> pairs = PlayerStats.withTeammates(player, games);
+            List<Player> teammates = new ArrayList<>(pairs.keySet());
+            Collections.sort(teammates, new Comparator<Player>() {
+                @Override
+                public int compare(Player first, Player second) {
+                    int difference = Long.compare(pairs.get(second).getDifference(),
+                            pairs.get(first).getDifference());
+                    return difference != 0 ? difference : first.name.compareToIgnoreCase(second.name);
+                }
+            });
+            if (teammates.isEmpty()) {
+                TextView empty = new TextView(this);
+                empty.setText(R.string.noTeammates);
+                teammatesList.addView(empty);
+            }
+            for (Player teammate : teammates) {
+                PlayerStats pair = pairs.get(teammate);
+                TextView row = new TextView(this);
+                row.setText(getString(R.string.nameAndPointsFormat,
+                        teammate.name, pair.pointsFor, pair.pointsAgainst));
+                row.setTextSize(16);
+                row.setPadding(0, 8, 0, 8);
+                teammatesList.addView(row);
             }
 
             final LinearLayout gamesList = findViewById(R.id.games);
             gamesList.removeAllViews();
-            final Context context = this;
-            new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
-                @Override
-                public void call() {
-                    List<Game> games = dataViewModel.getPlayerGames(player.id);
-                    Collections.reverse(games);
-                    for (Game game: games) {
-                        final ConstraintLayout gameRow = (ConstraintLayout) getLayoutInflater().inflate(R.layout.list_row, null);
-                        ImageView icon = gameRow.findViewById(R.id.icon);
-                        icon.setImageResource(Sports.icons.get(game.sport));
-                        TextView nameView = gameRow.findViewById(R.id.name);
-                        nameView.setText(game.getName(context));
-                        TextView detailView = gameRow.findViewById(R.id.detail);
-                        detailView.setText(game.getPlayerResult(player, context));
-//                        final TextView gameText = new TextView(context);
-//                        StringBuilder gameDescription = new StringBuilder();
-//                        gameDescription.append(game.getPlayerResult(player, context));
-//                        double initialRating = game.initialRatings.get(player.id);
-//                        double factor = 1;
-//                        if (game.team1.contains(player)) {
-//                            factor = game.getTeam1ChangeFactor();
-//                        } else if (game.team2.contains(player)) {
-//                            factor =  game.getTeam2ChangeFactor();
-//                        }
-//                        double newRating = initialRating * factor;
-//                        double changeDiff = newRating - initialRating;
-//                        gameDescription.append(String.format(" (%+.3f)", changeDiff));
-//                        gameText.setText(gameDescription.toString());
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                gamesList.addView(gameRow);
-                            }
-                        });
-                    }
-                }
-            }).execute();
+            Collections.reverse(games);
+            for (Game game: games) {
+                final ConstraintLayout gameRow = (ConstraintLayout) getLayoutInflater().inflate(R.layout.list_row, gamesList, false);
+                ImageView icon = gameRow.findViewById(R.id.icon);
+                icon.setImageResource(Sports.icons.get(game.sport));
+                TextView nameView = gameRow.findViewById(R.id.name);
+                nameView.setText(game.getName(this));
+                TextView detailView = gameRow.findViewById(R.id.detail);
+                detailView.setText(game.getPlayerResult(player, this));
+                gamesList.addView(gameRow);
+            }
         }
     }
 }

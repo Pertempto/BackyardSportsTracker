@@ -4,11 +4,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.support.v7.app.AlertDialog;
 
+import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 final class PlayerSelectionDialog {
@@ -19,19 +19,16 @@ final class PlayerSelectionDialog {
     private PlayerSelectionDialog() {}
 
     static void show(Context context, final List<Player> players, final String sport,
+                     List<Game> games,
                      final OnPlayersSelectedListener listener) {
-        Collections.sort(players, new Comparator<Player>() {
-            @Override
-            public int compare(Player first, Player second) {
-                return Double.compare(second.ratings.get(sport), first.ratings.get(sport));
-            }
-        });
+        PlayerStats.sortPlayers(players, games, sport);
 
         CharSequence[] labels = new CharSequence[players.size()];
         for (int i = 0; i < players.size(); i++) {
             Player player = players.get(i);
-            labels[i] = String.format(context.getString(R.string.nameAndRatingFormat),
-                    player.name, player.ratings.get(sport));
+            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
+            labels[i] = context.getString(R.string.nameAndPointsFormat,
+                    player.name, stats.pointsFor, stats.pointsAgainst);
         }
 
         final boolean[] checkedPlayers = new boolean[players.size()];

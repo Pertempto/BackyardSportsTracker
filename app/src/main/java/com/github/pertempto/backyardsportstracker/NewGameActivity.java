@@ -24,6 +24,7 @@ import com.github.pertempto.backyardsportstracker.data.DataViewModel;
 import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Grouping;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
 import java.util.ArrayList;
@@ -45,6 +46,7 @@ public class NewGameActivity extends AppCompatActivity {
     private String sport;
     private ArrayList<ArrayList<Player>> teams;
     private Game editingGame;
+    private List<Game> games = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,6 +115,20 @@ public class NewGameActivity extends AppCompatActivity {
                 updateTeams();
             }
         });
+
+        new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
+            @Override
+            public void call() {
+                final List<Game> history = dataViewModel.getAllGames();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        games = history;
+                        updateTeams();
+                    }
+                });
+            }
+        }).execute();
 
         if (gameId != 0) {
             if (actionBar != null) {
@@ -233,7 +249,7 @@ public class NewGameActivity extends AppCompatActivity {
                         activity.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                PlayerSelectionDialog.show(activity, players, selectedSport,
+                                PlayerSelectionDialog.show(activity, players, selectedSport, games,
                                         new PlayerSelectionDialog.OnPlayersSelectedListener() {
                                             @Override
                                             public void onPlayersSelected(ArrayList<Player> selectedPlayers) {
@@ -322,16 +338,15 @@ public class NewGameActivity extends AppCompatActivity {
     void updateTeams() {
         LinearLayout team1 = findViewById(R.id.team1);
         team1.removeAllViews();
-        double team1Rating = 0;
+        PlayerStats.sortPlayers(teams.get(0), games, sport);
         for (final Player player : teams.get(0)) {
             Log.d(LOG_TAG, String.format("Player on team1: %s", player));
-            double playerRating = getDisplayedRating(player);
-            team1Rating += playerRating;
+            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, playerRating));
+            textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -345,16 +360,15 @@ public class NewGameActivity extends AppCompatActivity {
 
         LinearLayout team2 = findViewById(R.id.team2);
         team2.removeAllViews();
-        double team2Rating = 0;
+        PlayerStats.sortPlayers(teams.get(1), games, sport);
         for (final Player player : teams.get(1)) {
             Log.d(LOG_TAG, String.format("Player on team2: %s", player));
-            double playerRating = getDisplayedRating(player);
-            team2Rating += playerRating;
+            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, playerRating));
+            textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -368,22 +382,9 @@ public class NewGameActivity extends AppCompatActivity {
 
         TextView team1RatingText = findViewById(R.id.team1Rating);
         TextView team2RatingText = findViewById(R.id.team2Rating);
-        if ((team1Rating + team2Rating) == 0) {
-            team1RatingText.setText("");
-            team2RatingText.setText("");
-        } else {
-            team1RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team1Rating, team1Rating / (team1Rating + team2Rating) * 100));
-            team2RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team2Rating, team2Rating / (team1Rating + team2Rating) * 100));
-        }
-    }
-
-    private double getDisplayedRating(Player player) {
-        if (editingGame != null) {
-            Double gameRating = editingGame.initialRatings.get(player.id);
-            if (gameRating != null) {
-                return gameRating;
-            }
-        }
-        return player.ratings.get(sport);
+        PlayerStats stats1 = PlayerStats.fromTeam(teams.get(0), games, sport);
+        PlayerStats stats2 = PlayerStats.fromTeam(teams.get(1), games, sport);
+        team1RatingText.setText(getString(R.string.pointsRecordFormat, stats1.pointsFor, stats1.pointsAgainst));
+        team2RatingText.setText(getString(R.string.pointsRecordFormat, stats2.pointsFor, stats2.pointsAgainst));
     }
 }

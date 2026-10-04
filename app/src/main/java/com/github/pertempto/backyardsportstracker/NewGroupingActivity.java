@@ -20,8 +20,10 @@ import android.widget.Toast;
 
 import com.github.pertempto.backyardsportstracker.data.BackgroundTask;
 import com.github.pertempto.backyardsportstracker.data.DataViewModel;
+import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Grouping;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
 import java.util.ArrayList;
@@ -39,6 +41,7 @@ public class NewGroupingActivity extends AppCompatActivity {
     private ArrayList<Grouping> groupings;
     private int groupingIndex = 0;
     private long editingGroupingId;
+    private List<Game> games = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,14 +106,19 @@ public class NewGroupingActivity extends AppCompatActivity {
             }
         });
 
-        if (editingGroupingId != 0) {
-            new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
+        new BackgroundTask(new BackgroundTask.BackgroundTaskCallback() {
                 @Override
                 public void call() {
-                    final Grouping grouping = dataViewModel.getGrouping(editingGroupingId);
+                    final List<Game> history = dataViewModel.getAllGames();
+                    final Grouping grouping = editingGroupingId == 0 ? null : dataViewModel.getGrouping(editingGroupingId);
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            games = history;
+                            if (editingGroupingId == 0) {
+                                updateGroupings();
+                                return;
+                            }
                             if (grouping == null) {
                                 Toast.makeText(NewGroupingActivity.this, R.string.groupingUnavailable, Toast.LENGTH_SHORT).show();
                                 finish();
@@ -130,7 +138,6 @@ public class NewGroupingActivity extends AppCompatActivity {
                     });
                 }
             }).execute();
-        }
     }
 
     @Override
@@ -188,7 +195,7 @@ public class NewGroupingActivity extends AppCompatActivity {
                         activity.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                PlayerSelectionDialog.show(activity, players, selectedSport,
+                                PlayerSelectionDialog.show(activity, players, selectedSport, games,
                                         new PlayerSelectionDialog.OnPlayersSelectedListener() {
                                             @Override
                                             public void onPlayersSelected(ArrayList<Player> playersToAdd) {
@@ -229,7 +236,7 @@ public class NewGroupingActivity extends AppCompatActivity {
 
     // update the list of possible groupings
     void updateGroupings() {
-        groupings = Util.generateGroupings(selectedPlayers, sport);
+        groupings = Util.generateGroupings(selectedPlayers, sport, games);
         groupingIndex = 0;
         updateTeams();
     }
@@ -240,14 +247,14 @@ public class NewGroupingActivity extends AppCompatActivity {
         groupingText.setText(String.format("(%d/%d)", groupingIndex + 1, groupings.size()));
         LinearLayout team1 = findViewById(R.id.team1);
         team1.removeAllViews();
-        double team1Rating = 0;
+        PlayerStats.sortPlayers(getGrouping().team1, games, sport);
         for (final Player player : getGrouping().team1) {
-            team1Rating += player.ratings.get(sport);
+            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, player.ratings.get(sport)));
+            textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -261,14 +268,14 @@ public class NewGroupingActivity extends AppCompatActivity {
 
         LinearLayout team2 = findViewById(R.id.team2);
         team2.removeAllViews();
-        double team2Rating = 0;
+        PlayerStats.sortPlayers(getGrouping().team2, games, sport);
         for (final Player player : getGrouping().team2) {
-            team2Rating += player.ratings.get(sport);
+            PlayerStats stats = PlayerStats.fromGames(player, games, sport);
             View row = getLayoutInflater().inflate(R.layout.deletable_item, null);
             TextView textView = row.findViewById(R.id.text);
             textView.setGravity(Gravity.CENTER_HORIZONTAL);
             textView.setTextSize(16);
-            textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, player.ratings.get(sport)));
+            textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
             ImageButton deleteButton = row.findViewById(R.id.deleteButton);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -282,28 +289,12 @@ public class NewGroupingActivity extends AppCompatActivity {
 
         TextView team1RatingText = findViewById(R.id.team1Rating);
         TextView team2RatingText = findViewById(R.id.team2Rating);
-        TextView team1ExpectedScoreText = findViewById(R.id.team1ExpectedScore);
-        TextView team2ExpectedScoreText = findViewById(R.id.team2ExpectedScore);
-        if ((team1Rating + team2Rating) == 0) {
-            team1RatingText.setText("");
-            team2RatingText.setText("");
-            team1ExpectedScoreText.setText("");
-            team2ExpectedScoreText.setText("");
-        } else {
-            team1RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team1Rating, team1Rating / (team1Rating + team2Rating) * 100));
-            team2RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team2Rating, team2Rating / (team1Rating + team2Rating) * 100));
-            double team1ExpectedScore = 0;
-            double team2ExpectedScore = 0;
-            if (team1Rating > team2Rating) {
-                team1ExpectedScore = Sports.targetScores.get(sport);
-                team2ExpectedScore = Sports.targetScores.get(sport) * (team2Rating/team1Rating);
-            } else {
-                team2ExpectedScore = Sports.targetScores.get(sport);
-                team1ExpectedScore = Sports.targetScores.get(sport) * (team1Rating/team2Rating);
-            }
-            team1ExpectedScoreText.setText(String.format(getString(R.string.expectedScoreFormat), team1ExpectedScore));
-            team2ExpectedScoreText.setText(String.format(getString(R.string.expectedScoreFormat), team2ExpectedScore));
-        }
+        PlayerStats stats1 = PlayerStats.fromTeam(getGrouping().team1, games, sport);
+        PlayerStats stats2 = PlayerStats.fromTeam(getGrouping().team2, games, sport);
+        team1RatingText.setText(getString(R.string.pointsRecordFormat, stats1.pointsFor, stats1.pointsAgainst));
+        team2RatingText.setText(getString(R.string.pointsRecordFormat, stats2.pointsFor, stats2.pointsAgainst));
+        findViewById(R.id.team1ExpectedScore).setVisibility(View.GONE);
+        findViewById(R.id.team2ExpectedScore).setVisibility(View.GONE);
     }
 
     private Grouping getGrouping() {

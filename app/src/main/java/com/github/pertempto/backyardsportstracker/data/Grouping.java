@@ -3,7 +3,6 @@ package com.github.pertempto.backyardsportstracker.data;
 import android.content.Context;
 
 import com.github.pertempto.backyardsportstracker.R;
-import com.github.pertempto.backyardsportstracker.Util;
 
 import java.util.List;
 
@@ -32,11 +31,4 @@ public class Grouping extends BaseDataObject {
         return entity;
     }
 
-    public double getTeam1Rating() {
-        return Util.rateTeam(team1, sport);
-    }
-
-    public double getTeam2Rating() {
-        return Util.rateTeam(team2, sport);
-    }
 }

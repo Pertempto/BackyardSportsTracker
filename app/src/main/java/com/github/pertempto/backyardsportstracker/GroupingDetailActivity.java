@@ -20,9 +20,13 @@ import android.widget.Toast;
 
 import com.github.pertempto.backyardsportstracker.data.BackgroundTask;
 import com.github.pertempto.backyardsportstracker.data.DataViewModel;
+import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Grouping;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 import com.github.pertempto.backyardsportstracker.data.Sports;
+
+import java.util.List;
 
 public class GroupingDetailActivity extends AppCompatActivity {
 
@@ -59,10 +63,11 @@ public class GroupingDetailActivity extends AppCompatActivity {
             @Override
             public void call() {
                 final Grouping grouping = dataViewModel.getGrouping(groupingId);
+                final List<Game> games = dataViewModel.getAllGames();
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        setGrouping(grouping);
+                        setGrouping(grouping, games);
                     }
                 });
             }
@@ -136,7 +141,7 @@ public class GroupingDetailActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void setGrouping(final Grouping grouping) {
+    private void setGrouping(final Grouping grouping, List<Game> games) {
         this.grouping = grouping;
 
         if (grouping != null) {
@@ -151,49 +156,33 @@ public class GroupingDetailActivity extends AppCompatActivity {
             final LinearLayout team2 = findViewById(R.id.team2);
             team2.removeAllViews();
 
-            double team1Rating = 0;
+            PlayerStats.sortPlayers(grouping.team1, games, grouping.sport);
             for (Player player:grouping.team1) {
-                team1Rating += player.ratings.get(grouping.sport);
+                PlayerStats stats = PlayerStats.fromGames(player, games, grouping.sport);
                 TextView textView = new TextView(this);
                 textView.setGravity(Gravity.CENTER_HORIZONTAL);
                 textView.setTextSize(16);
-                textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, player.ratings.get(grouping.sport)));
+                textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
                 team1.addView(textView);
             }
-            double team2Rating = 0;
+            PlayerStats.sortPlayers(grouping.team2, games, grouping.sport);
             for (Player player:grouping.team2) {
-                team2Rating += player.ratings.get(grouping.sport);
+                PlayerStats stats = PlayerStats.fromGames(player, games, grouping.sport);
                 TextView textView = new TextView(this);
                 textView.setGravity(Gravity.CENTER_HORIZONTAL);
                 textView.setTextSize(16);
-                textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, player.ratings.get(grouping.sport)));
+                textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
                 team2.addView(textView);
             }
 
             TextView team1RatingText = findViewById(R.id.team1Rating);
             TextView team2RatingText = findViewById(R.id.team2Rating);
-            TextView team1ExpectedScoreText = findViewById(R.id.team1ExpectedScore);
-            TextView team2ExpectedScoreText = findViewById(R.id.team2ExpectedScore);
-            if ((team1Rating + team2Rating) == 0) {
-                team1RatingText.setText("");
-                team2RatingText.setText("");
-                team1ExpectedScoreText.setText("");
-                team2ExpectedScoreText.setText("");
-            } else {
-                team1RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team1Rating, team1Rating / (team1Rating + team2Rating) * 100));
-                team2RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team2Rating, team2Rating / (team1Rating + team2Rating) * 100));
-                double team1ExpectedScore = 0;
-                double team2ExpectedScore = 0;
-                if (team1Rating > team2Rating) {
-                    team1ExpectedScore = Sports.targetScores.get(grouping.sport);
-                    team2ExpectedScore = Sports.targetScores.get(grouping.sport) * (team2Rating/team1Rating);
-                } else {
-                    team2ExpectedScore = Sports.targetScores.get(grouping.sport);
-                    team1ExpectedScore = Sports.targetScores.get(grouping.sport) * (team1Rating/team2Rating);
-                }
-                team1ExpectedScoreText.setText(String.format(getString(R.string.expectedScoreFormat), team1ExpectedScore));
-                team2ExpectedScoreText.setText(String.format(getString(R.string.expectedScoreFormat), team2ExpectedScore));
-            }
+            PlayerStats stats1 = PlayerStats.fromTeam(grouping.team1, games, grouping.sport);
+            PlayerStats stats2 = PlayerStats.fromTeam(grouping.team2, games, grouping.sport);
+            team1RatingText.setText(getString(R.string.pointsRecordFormat, stats1.pointsFor, stats1.pointsAgainst));
+            team2RatingText.setText(getString(R.string.pointsRecordFormat, stats2.pointsFor, stats2.pointsAgainst));
+            findViewById(R.id.team1ExpectedScore).setVisibility(View.GONE);
+            findViewById(R.id.team2ExpectedScore).setVisibility(View.GONE);
         }
     }
 }

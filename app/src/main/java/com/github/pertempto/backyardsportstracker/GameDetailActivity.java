@@ -21,6 +21,7 @@ import com.github.pertempto.backyardsportstracker.data.BackgroundTask;
 import com.github.pertempto.backyardsportstracker.data.DataViewModel;
 import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
 import java.text.SimpleDateFormat;
@@ -61,10 +62,11 @@ public class GameDetailActivity extends AppCompatActivity {
             @Override
             public void call() {
                 final Game game = dataViewModel.getGame(gameId);
+                final List<Game> games = dataViewModel.getAllGames();
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        setGame(game);
+                        setGame(game, games);
                     }
                 });
             }
@@ -167,7 +169,7 @@ public class GameDetailActivity extends AppCompatActivity {
         }).execute();
     }
 
-    private void setGame(final Game game) {
+    private void setGame(final Game game, List<Game> games) {
         this.game = game;
 
         if (game != null) {
@@ -186,34 +188,31 @@ public class GameDetailActivity extends AppCompatActivity {
             final LinearLayout team2 = findViewById(R.id.team2);
             team2.removeAllViews();
 
-            double team1Rating = 0;
+            PlayerStats.sortPlayers(game.team1, games, game.sport);
             for (Player player: game.team1) {
-                team1Rating += game.initialRatings.get(player.id);
+                PlayerStats stats = PlayerStats.fromGames(player, games, game.sport);
                 TextView textView = new TextView(this);
                 textView.setGravity(Gravity.CENTER_HORIZONTAL);
                 textView.setTextSize(16);
-                textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, game.initialRatings.get(player.id)));
+                textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
                 team1.addView(textView);
             }
-            double team2Rating = 0;
+            PlayerStats.sortPlayers(game.team2, games, game.sport);
             for (Player player: game.team2) {
-                team2Rating += game.initialRatings.get(player.id);
+                PlayerStats stats = PlayerStats.fromGames(player, games, game.sport);
                 TextView textView = new TextView(this);
                 textView.setGravity(Gravity.CENTER_HORIZONTAL);
                 textView.setTextSize(16);
-                textView.setText(String.format(getString(R.string.nameAndRatingFormat), player.name, game.initialRatings.get(player.id)));
+                textView.setText(getString(R.string.nameAndPointsFormat, player.name, stats.pointsFor, stats.pointsAgainst));
                 team2.addView(textView);
             }
 
             TextView team1RatingText = findViewById(R.id.team1Rating);
             TextView team2RatingText = findViewById(R.id.team2Rating);
-            if ((team1Rating + team2Rating) == 0) {
-                team1RatingText.setText("");
-                team2RatingText.setText("");
-            } else {
-                team1RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team1Rating, team1Rating / (team1Rating + team2Rating) * 100));
-                team2RatingText.setText(String.format(getString(R.string.teamRatingAndChanceFormat), team2Rating, team2Rating / (team1Rating + team2Rating) * 100));
-            }
+            PlayerStats stats1 = PlayerStats.fromTeam(game.team1, games, game.sport);
+            PlayerStats stats2 = PlayerStats.fromTeam(game.team2, games, game.sport);
+            team1RatingText.setText(getString(R.string.pointsRecordFormat, stats1.pointsFor, stats1.pointsAgainst));
+            team2RatingText.setText(getString(R.string.pointsRecordFormat, stats2.pointsFor, stats2.pointsAgainst));
         } else {
             Toast.makeText(this, R.string.gameUnavailable, Toast.LENGTH_SHORT).show();
             finish();

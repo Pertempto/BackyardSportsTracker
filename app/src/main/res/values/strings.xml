@@ -17,6 +17,16 @@
     <string name="nameLabel">Name:</string>
     <string name="name">Name</string>
     <string name="ratingsTitle">Ratings:</string>
+    <string name="winLossFormat">%1$d W / %2$d L</string>
+    <string name="winLossTieFormat">%1$d W / %2$d L / %3$d T</string>
+    <string name="pointsTitle">Points (all games):</string>
+    <string name="pointsForFormat">For: %1$d</string>
+    <string name="pointsAgainstFormat">Against: %1$d</string>
+    <string name="pointsRecordFormat">%1$d-%2$d</string>
+    <string name="nameAndPointsFormat">%1$s (%2$d-%3$d)</string>
+    <string name="teammatesTitle">Played with:</string>
+    <string name="teammatesDescription">Points for-against in games on the same team (all sports).</string>
+    <string name="noTeammates">No teammates yet.</string>
     <string name="addSport">Add Sport</string>
     <string name="cancel">Cancel</string>
     <string name="sportLabel">Sport:</string>

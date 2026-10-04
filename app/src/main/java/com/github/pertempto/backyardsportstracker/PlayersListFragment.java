@@ -23,6 +23,7 @@ import android.widget.Spinner;
 
 import com.github.pertempto.backyardsportstracker.data.BackgroundTask;
 import com.github.pertempto.backyardsportstracker.data.DataViewModel;
+import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Player;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
@@ -129,10 +130,11 @@ public class PlayersListFragment extends Fragment {
             @Override
             public void call() {
                 final List<Player> players = dataViewModel.getAllPlayers();
+                final List<Game> games = dataViewModel.getAllGamesBySport(sport);
                 activity.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        adapter.setPlayers(sport, players);
+                        adapter.setPlayers(sport, players, games);
                     }
                 });
             }

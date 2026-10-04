@@ -40,18 +40,40 @@
                 app:layout_constraintTop_toTopOf="parent" />
 
             <TextView
-                android:id="@+id/ratingsTitle"
+                android:id="@+id/pointsTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="@string/ratingsTitle"
+                android:text="@string/pointsTitle"
                 android:textSize="18sp"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/name" />
 
-            <LinearLayout
-                android:id="@+id/ratingsLayout"
+            <TextView
+                android:id="@+id/pointsFor"
                 android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/pointsAgainst"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/teammatesTitle"
+                android:textSize="18sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/teammatesDescription" />
+
+            <LinearLayout
+                android:id="@+id/teammates"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
@@ -63,7 +85,7 @@
                 android:text="@string/gamesTitle"
                 android:textSize="18sp"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/ratingsLayout" />
+                app:layout_constraintTop_toBottomOf="@+id/pointsAgainst" />
 
             <LinearLayout
                 android:id="@+id/games"

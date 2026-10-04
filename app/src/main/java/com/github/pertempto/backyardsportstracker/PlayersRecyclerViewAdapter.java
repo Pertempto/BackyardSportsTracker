@@ -7,12 +7,13 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Player;
+import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 import com.github.pertempto.backyardsportstracker.data.Sports;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 
@@ -22,6 +23,7 @@ public class PlayersRecyclerViewAdapter extends RecyclerView.Adapter<PlayersRecy
 
     private String sport;
     private List<Player> players;
+    private final HashMap<Long, PlayerStats> records = new HashMap<>();
 
     public PlayersRecyclerViewAdapter(PlayersListFragment.OnPlayerClickListener listener) {
         this.listener = listener;
@@ -40,7 +42,10 @@ public class PlayersRecyclerViewAdapter extends RecyclerView.Adapter<PlayersRecy
         holder.player = player;
         holder.iconView.setImageResource(Sports.icons.get(sport));
         holder.nameView.setText(player.name);
-        holder.ratingView.setText(String.format("%.2f", player.ratings.get(sport)));
+        PlayerStats stats = records.get(player.id);
+        holder.recordView.setText(holder.view.getContext().getString(
+                stats.ties == 0 ? R.string.winLossFormat : R.string.winLossTieFormat,
+                stats.wins, stats.losses, stats.ties));
 
         holder.view.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -62,27 +67,17 @@ public class PlayersRecyclerViewAdapter extends RecyclerView.Adapter<PlayersRecy
         return 0;
     }
 
-    void setPlayers(final String sport, List<Player> players) {
+    void setPlayers(final String sport, List<Player> players, List<Game> games) {
         this.sport = sport;
         this.players = new ArrayList<>();
+        records.clear();
         for (Player player: players) {
             if (player.ratings.containsKey(sport)) {
                 this.players.add(player);
+                records.put(player.id, PlayerStats.fromGames(player, games, sport));
             }
         }
-        Collections.sort(this.players, new Comparator<Player>() {
-            @Override
-            public int compare(Player o1, Player o2) {
-                double diff = o2.ratings.get(sport)-o1.ratings.get(sport);
-                if (diff > 0) {
-                    return 1;
-                } else if (diff < 0) {
-                    return -1;
-                } else {
-                    return 0;
-                }
-            }
-        });
+        PlayerStats.sortPlayers(this.players, games, sport);
         notifyDataSetChanged();
     }
 
@@ -90,7 +85,7 @@ public class PlayersRecyclerViewAdapter extends RecyclerView.Adapter<PlayersRecy
         final View view;
         final ImageView iconView;
         final TextView nameView;
-        final TextView ratingView;
+        final TextView recordView;
         Player player;
 
         ViewHolder(View view) {
@@ -98,7 +93,7 @@ public class PlayersRecyclerViewAdapter extends RecyclerView.Adapter<PlayersRecy
             this.view = view;
             iconView = view.findViewById(R.id.icon);
             nameView = view.findViewById(R.id.name);
-            ratingView = view.findViewById(R.id.detail);
+            recordView = view.findViewById(R.id.detail);
         }
     }
 }
