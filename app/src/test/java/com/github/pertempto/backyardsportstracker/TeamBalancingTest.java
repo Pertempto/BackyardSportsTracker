@@ -3,8 +3,8 @@ package com.github.pertempto.backyardsportstracker;
 import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Grouping;
 import com.github.pertempto.backyardsportstracker.data.Player;
-import com.github.pertempto.backyardsportstracker.data.PlayerStats;
 import com.github.pertempto.backyardsportstracker.data.Sports;
+import com.github.pertempto.backyardsportstracker.data.TeamStrength;
 
 import org.junit.Test;
 
@@ -22,90 +22,45 @@ import static org.junit.Assert.assertTrue;
 
 public class TeamBalancingTest {
     @Test
-    public void screenshotRosterIncludesAllSplitsAndRanksBySumOfIndividualShares() {
-        int[][] points = {{14, 8}, {17, 28}, {20, 9}, {16, 6}, {13, 9},
-                {24, 21}, {23, 22}, {17, 16}, {14, 31}, {14, 31}};
-        ArrayList<Player> players = new ArrayList<>();
-        List<Game> games = new ArrayList<>();
-        Player opponent = player(99);
-        for (int i = 0; i < points.length; i++) {
-            Player player = player(i + 1);
-            players.add(player);
-            games.add(new Game(Sports.ULTIMATE, new Date(0), new HashMap<Long, Double>(),
-                    points[i][0], points[i][1], Arrays.asList(player), Arrays.asList(opponent)));
-        }
+    public void backupRosterMatchesIndependentExperimentAndRetainsEverySplit() {
+        List<Game> games = backupGames();
+        ArrayList<Player> players = new ArrayList<>(team(1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12));
         ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
-        assertEquals(511, groupings.size());
-        double previousGap = -1;
+        assertEquals(1023, groupings.size());
+        assertCostsSorted(groupings, games);
+        Set<Set<Long>> seen = new HashSet<>();
+        double smallestThreeVsEightGap = Double.POSITIVE_INFINITY;
         for (Grouping grouping : groupings) {
             assertTrue(!grouping.team1.isEmpty() && !grouping.team2.isEmpty());
-            assertEquals(10, grouping.team1.size() + grouping.team2.size());
-            double first = strength(grouping.team1, points);
-            double second = strength(grouping.team2, points);
-            assertEquals(first, PlayerStats.teamStrength(grouping.team1, games, Sports.ULTIMATE), 1e-12);
-            assertEquals(second, PlayerStats.teamStrength(grouping.team2, games, Sports.ULTIMATE), 1e-12);
-            assertTrue(first <= second);
-            double gap = second - first;
-            assertTrue(gap + 1e-12 >= previousGap);
-            previousGap = gap;
+            Set<Long> all = ids(grouping.team1);
+            for (Player player : grouping.team2) {
+                assertTrue(all.add(player.id));
+            }
+            assertEquals(ids(players), all);
+            List<Player> anchored = grouping.team1.contains(player(1)) ? grouping.team1 : grouping.team2;
+            assertTrue(seen.add(ids(anchored)));
+            if (Math.min(grouping.team1.size(), grouping.team2.size()) == 3) {
+                smallestThreeVsEightGap = Math.min(smallestThreeVsEightGap,
+                        Math.abs(Util.teamStrength(grouping.team1, games, Sports.ULTIMATE)
+                                - Util.teamStrength(grouping.team2, games, Sports.ULTIMATE)));
+            }
         }
         Grouping best = groupings.get(0);
-        assertEquals(0.007836990595611049,
-                strength(best.team2, points) - strength(best.team1, points), 1e-12);
-        assertEquals(5, best.team1.size());
-        assertEquals(5, best.team2.size());
+        // Expected rosters and strengths come from the independent Python experiment.
+        assertEquals(ids(team(1, 12, 6, 9, 5)), ids(best.team1));
+        assertEquals(ids(team(2, 3, 8, 7, 10, 11)), ids(best.team2));
+        assertEquals(3.067668, Util.teamStrength(best.team1, games, Sports.ULTIMATE), 1e-6);
+        assertEquals(3.068813, Util.teamStrength(best.team2, games, Sports.ULTIMATE), 1e-6);
+        assertEquals(3.5, Util.teamStrength(team(12, 8, 2, 1, 11), games, Sports.ULTIMATE), 1e-12);
+        assertEquals(1.8, Util.teamStrength(team(3, 5, 9, 10, 6, 7), games, Sports.ULTIMATE), 1e-12);
+        assertEquals(0.3, smallestThreeVsEightGap, 1e-12);
+        for (Grouping grouping : groupings.subList(0, 10)) {
+            assertTrue(Math.min(grouping.team1.size(), grouping.team2.size()) > 3);
+        }
     }
 
     @Test
-    public void familiarityChangesTheDisplayedStrengthUsedForRanking() {
-        Player first = player(1);
-        Player second = player(2);
-        Player third = player(3);
-        Player fourth = player(4);
-        Player opponent = player(99);
-        ArrayList<Player> players = new ArrayList<>(Arrays.asList(first, second, third, fourth));
-        List<Game> games = new ArrayList<>();
-        int[][] scores = {{103, 97}, {1, 1}, {1, 1}, {97, 103}};
-        for (int i = 0; i < players.size(); i++) {
-            games.add(game(Sports.ULTIMATE, scores[i][0], scores[i][1],
-                    Arrays.asList(players.get(i)), Arrays.asList(opponent)));
-        }
-        // The individually balanced split has one familiar pair, giving a gap of 0.01.
-        // Fresh 2v2 splits have a strength gap of 0.03, so balance wins initially.
-        games.add(game(Sports.ULTIMATE, 0, 0,
-                Arrays.asList(first, fourth), Arrays.asList(opponent)));
-        for (int i = 0; i < 3; i++) {
-            games.add(game(Sports.BASKETBALL, 0, 0,
-                    Arrays.asList(first, fourth), Arrays.asList(opponent)));
-            Game deleted = game(Sports.ULTIMATE, 0, 0,
-                    Arrays.asList(first, fourth), Arrays.asList(opponent));
-            deleted.deleted = true;
-            games.add(deleted);
-        }
-        ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
-        assertEquals(7, groupings.size());
-        assertTrue(together(groupings.get(0), first, fourth));
-        assertEquals(1.01, Util.teamStrength(Arrays.asList(first, fourth), games, Sports.ULTIMATE), 1e-12);
-        assertEquals(1.0, Util.teamStrength(Arrays.asList(second, third), games, Sports.ULTIMATE), 1e-12);
-        assertCostsSorted(groupings, games);
-
-        // Four shared games give a gap of 0.04: now a fresh split with gap 0.03 wins.
-        // Reversed order, opposite side, and separately loaded objects must still count.
-        for (int i = 0; i < 3; i++) {
-            games.add(game(Sports.ULTIMATE, 0, 0,
-                    Arrays.asList(opponent), Arrays.asList(player(4), player(1))));
-        }
-        groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
-        Grouping best = groupings.get(0);
-        assertTrue(!together(best, first, fourth));
-        assertEquals(1.04, Util.teamStrength(Arrays.asList(first, fourth), games, Sports.ULTIMATE), 1e-12);
-        assertEquals(0.03, Math.abs(Util.teamStrength(best.team1, games, Sports.ULTIMATE)
-                - Util.teamStrength(best.team2, games, Sports.ULTIMATE)), 1e-12);
-        assertCostsSorted(groupings, games);
-    }
-
-    @Test
-    public void countsEveryUnorderedPairInLargerTeamsAndStillIncludesUnequalSplits() {
+    public void zeroScoreHistoryStillIncludesUnequalSplits() {
         ArrayList<Player> players = new ArrayList<>(Arrays.asList(
                 player(1), player(2), player(3), player(4), player(5)));
         List<Game> games = Arrays.asList(game(Sports.ULTIMATE, 0, 0,
@@ -151,38 +106,14 @@ public class TeamBalancingTest {
         assertEquals(15, seen.size());
     }
 
-    private static boolean together(Grouping grouping, Player first, Player second) {
-        return (grouping.team1.contains(first) && grouping.team1.contains(second))
-                || (grouping.team2.contains(first) && grouping.team2.contains(second));
-    }
-
     private static void assertCostsSorted(List<Grouping> groupings, List<Game> games) {
         double previous = -1;
+        TeamStrength model = TeamStrength.fromGames(games, Sports.ULTIMATE);
         for (Grouping grouping : groupings) {
-            List<Double> strengths = new ArrayList<>();
-            for (List<Player> current : Arrays.asList(grouping.team1, grouping.team2)) {
-                long familiar = 0;
-                for (Game game : games) {
-                    if (game.deleted || !Sports.ULTIMATE.equals(game.sport)) {
-                        continue;
-                    }
-                    for (List<Player> historical : Arrays.asList(game.team1, game.team2)) {
-                        int shared = 0;
-                        for (Player player : current) {
-                            if (historical.contains(player)) {
-                                shared++;
-                            }
-                        }
-                        familiar += shared * (shared - 1) / 2;
-                    }
-                }
-                double strength = PlayerStats.teamStrength(current, games, Sports.ULTIMATE)
-                        + familiar / 100.0;
-                assertEquals(strength, Util.teamStrength(current, games, Sports.ULTIMATE), 1e-12);
-                strengths.add(strength);
-            }
-            double first = strengths.get(0);
-            double second = strengths.get(1);
+            double first = Util.teamStrength(grouping.team1, games, Sports.ULTIMATE);
+            double second = Util.teamStrength(grouping.team2, games, Sports.ULTIMATE);
+            assertEquals(model.forTeam(grouping.team1), first, 1e-12);
+            assertEquals(model.forTeam(grouping.team2), second, 1e-12);
             assertTrue(first <= second);
             double cost = Math.abs(first - second);
             assertTrue(cost + 1e-12 >= previous);
@@ -196,13 +127,35 @@ public class TeamBalancingTest {
                 scored, conceded, first, second);
     }
 
-    private static double strength(List<Player> players, int[][] points) {
-        double strength = 0;
-        for (Player player : players) {
-            int[] record = points[(int) player.id - 1];
-            strength += (double) record[0] / (record[0] + record[1]);
+    private static List<Game> backupGames() {
+        return Arrays.asList(
+                game(Sports.ULTIMATE, 4, 6, team(2, 7, 6, 10), team(1, 11, 5)),
+                game(Sports.ULTIMATE, 2, 4, team(1, 2, 6, 7), team(3, 8, 10, 12)),
+                game(Sports.ULTIMATE, 0, 3, team(11, 2, 7, 6, 10), team(1, 9, 12, 5)),
+                game(Sports.ULTIMATE, 3, 0, team(2, 6, 7, 9, 11), team(1, 5, 10, 12)),
+                game(Sports.ULTIMATE, 3, 1, team(1, 2, 4, 10), team(6, 7, 11, 12)),
+                game(Sports.ULTIMATE, 0, 3, team(6, 8, 9, 10, 14, 4), team(1, 2, 5, 7, 13, 3)),
+                game(Sports.ULTIMATE, 0, 3, team(1, 7, 10), team(2, 5, 6)),
+                game(Sports.ULTIMATE, 3, 0, team(3, 8, 9, 11, 12), team(1, 2, 5, 6, 7, 10)),
+                game(Sports.ULTIMATE, 3, 0, team(3, 8, 9, 11, 12), team(1, 2, 6, 7, 10)),
+                game(Sports.ULTIMATE, 1, 3, team(3, 9, 11, 7, 6), team(12, 8, 2, 1, 10)),
+                game(Sports.ULTIMATE, 3, 0, team(12, 8, 2, 1, 10), team(3, 9, 11, 7, 6)));
+    }
+
+    private static List<Player> team(long... ids) {
+        List<Player> players = new ArrayList<>();
+        for (long id : ids) {
+            players.add(player(id));
         }
-        return strength;
+        return players;
+    }
+
+    private static Set<Long> ids(List<Player> players) {
+        Set<Long> ids = new HashSet<>();
+        for (Player player : players) {
+            ids.add(player.id);
+        }
+        return ids;
     }
 
     private static Player player(long id) {

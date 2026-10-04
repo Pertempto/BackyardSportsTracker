@@ -8,11 +8,11 @@ import com.github.pertempto.backyardsportstracker.data.Game;
 import com.github.pertempto.backyardsportstracker.data.Grouping;
 import com.github.pertempto.backyardsportstracker.data.Player;
 import com.github.pertempto.backyardsportstracker.data.PlayerStats;
+import com.github.pertempto.backyardsportstracker.data.TeamStrength;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 
 public class Util {
@@ -32,11 +32,7 @@ public class Util {
     public static ArrayList<Grouping> generateGroupings(ArrayList<Player> players, final String sport,
                                                        List<Game> games) {
         PlayerStats.sortPlayers(players, games, sport);
-        final HashMap<Long, PlayerStats> stats = new HashMap<>();
-        for (Player player : players) {
-            stats.put(player.id, PlayerStats.fromGames(player, games, sport));
-        }
-        final HashMap<Long, HashMap<Long, Integer>> pairGames = pairGames(players, games, sport);
+        final TeamStrength strength = TeamStrength.fromGames(games, sport);
 
         ArrayList<Grouping> groupings = new ArrayList<>();
         if (players.size() == 0) {
@@ -64,7 +60,7 @@ public class Util {
             Collections.sort(teams, new Comparator<ArrayList<Player>>() {
                 @Override
                 public int compare(ArrayList<Player> o1, ArrayList<Player> o2) {
-                    return Double.compare(rateTeam(o1, stats, pairGames), rateTeam(o2, stats, pairGames));
+                    return Double.compare(strength.forTeam(o1), strength.forTeam(o2));
                 }
             });
             groupings.add(new Grouping(sport, teams.get(0), teams.get(1)));
@@ -73,8 +69,7 @@ public class Util {
         Collections.sort(groupings, new Comparator<Grouping>() {
             @Override
             public int compare(Grouping o1, Grouping o2) {
-                return Double.compare(rateGrouping(o1, stats, pairGames),
-                        rateGrouping(o2, stats, pairGames));
+                return Double.compare(rateGrouping(o1, strength), rateGrouping(o2, strength));
             }
         });
 
@@ -82,73 +77,10 @@ public class Util {
     }
 
     public static double teamStrength(List<Player> team, List<Game> games, String sport) {
-        HashMap<Long, PlayerStats> stats = new HashMap<>();
-        for (Player player : team) {
-            stats.put(player.id, PlayerStats.fromGames(player, games, sport));
-        }
-        return rateTeam(team, stats, pairGames(team, games, sport));
+        return TeamStrength.fromGames(games, sport).forTeam(team);
     }
 
-    private static HashMap<Long, HashMap<Long, Integer>> pairGames(
-            List<Player> players, List<Game> games, String sport) {
-        HashMap<Long, HashMap<Long, Integer>> counts = new HashMap<>();
-        for (Player player : players) {
-            counts.put(player.id, new HashMap<Long, Integer>());
-        }
-        for (Game game : games) {
-            if (game.deleted || (sport != null && !sport.equals(game.sport))) {
-                continue;
-            }
-            countPairGames(game.team1, counts);
-            countPairGames(game.team2, counts);
-        }
-        return counts;
-    }
-
-    private static void countPairGames(List<Player> team,
-                                       HashMap<Long, HashMap<Long, Integer>> pairGames) {
-        for (int i = 0; i < team.size(); i++) {
-            for (int j = i + 1; j < team.size(); j++) {
-                long first = Math.min(team.get(i).id, team.get(j).id);
-                long second = Math.max(team.get(i).id, team.get(j).id);
-                if (!pairGames.containsKey(first) || !pairGames.containsKey(second)) {
-                    continue;
-                }
-                HashMap<Long, Integer> counts = pairGames.get(first);
-                Integer count = counts.get(second);
-                counts.put(second, count == null ? 1 : count + 1);
-            }
-        }
-    }
-
-    private static long familiarity(List<Player> team,
-                                    HashMap<Long, HashMap<Long, Integer>> pairGames) {
-        long total = 0;
-        for (int i = 0; i < team.size(); i++) {
-            for (int j = i + 1; j < team.size(); j++) {
-                long first = Math.min(team.get(i).id, team.get(j).id);
-                long second = Math.max(team.get(i).id, team.get(j).id);
-                Integer count = pairGames.get(first).get(second);
-                if (count != null) {
-                    total += count;
-                }
-            }
-        }
-        return total;
-    }
-
-    private static double rateGrouping(Grouping grouping, HashMap<Long, PlayerStats> stats,
-                                       HashMap<Long, HashMap<Long, Integer>> pairGames) {
-        return Math.abs(rateTeam(grouping.team1, stats, pairGames)
-                - rateTeam(grouping.team2, stats, pairGames));
-    }
-
-    private static double rateTeam(List<Player> team, HashMap<Long, PlayerStats> stats,
-                                   HashMap<Long, HashMap<Long, Integer>> pairGames) {
-        double strength = 0;
-        for (Player player: team) {
-            strength += stats.get(player.id).getStrength();
-        }
-        return strength + 0.01 * familiarity(team, pairGames);
+    private static double rateGrouping(Grouping grouping, TeamStrength strength) {
+        return Math.abs(strength.forTeam(grouping.team1) - strength.forTeam(grouping.team2));
     }
 }
