@@ -19,55 +19,56 @@ import static org.junit.Assert.assertTrue;
 
 public class TeamBalancingTest {
     @Test
-    public void ranksClosestPointDifferencesFirstEvenWhenTotalDifferenceIsZero() {
-        verifyBalancing(new int[]{8, 3, -2, -9}, new int[]{2, 4, 6, 12, 16, 18, 22});
-    }
-
-    @Test
-    public void handlesNegativeTeamStrengthsWithoutRatios() {
-        verifyBalancing(new int[]{-8, -3, -2, -9}, new int[]{0, 2, 4, 6, 12, 16, 18});
-    }
-
-    @Test
-    public void playersWithoutHistoryHaveZeroStrength() {
-        ArrayList<Player> players = new ArrayList<>(Arrays.asList(player(1), player(2), player(3)));
-        ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE,
-                Collections.<Game>emptyList());
-        assertEquals(3, groupings.size());
-        for (Grouping grouping : groupings) {
-            assertTrue(!grouping.team1.isEmpty() && !grouping.team2.isEmpty());
-            assertEquals(3, grouping.team1.size() + grouping.team2.size());
-        }
-    }
-
-    private static void verifyBalancing(int[] differences, int[] expectedGaps) {
+    public void screenshotRosterProducesOnlyFiveVersusFiveAndRanksByScoringShare() {
+        int[][] points = {{14, 8}, {17, 28}, {20, 9}, {16, 6}, {13, 9},
+                {24, 21}, {23, 22}, {17, 16}, {14, 31}, {14, 31}};
         ArrayList<Player> players = new ArrayList<>();
         List<Game> games = new ArrayList<>();
         Player opponent = player(99);
-        for (int i = 0; i < differences.length; i++) {
+        for (int i = 0; i < points.length; i++) {
             Player player = player(i + 1);
             players.add(player);
             games.add(new Game(Sports.ULTIMATE, new Date(0), new HashMap<Long, Double>(),
-                    Math.max(differences[i], 0), Math.max(-differences[i], 0),
-                    Arrays.asList(player), Arrays.asList(opponent)));
+                    points[i][0], points[i][1], Arrays.asList(player), Arrays.asList(opponent)));
         }
         ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
-        assertEquals(expectedGaps.length, groupings.size());
-        for (int i = 0; i < groupings.size(); i++) {
-            Grouping grouping = groupings.get(i);
-            // Use the supplied differences, not the aggregation code under test.
-            int first = sum(grouping.team1, differences);
-            int second = sum(grouping.team2, differences);
+        assertEquals(126, groupings.size());
+        // Independently calculated strengths from the screenshot's totals, with a 3-3 prior.
+        double[] strengths = {17.0 / 28, 20.0 / 51, 23.0 / 35, 19.0 / 28, 16.0 / 28,
+                27.0 / 51, 26.0 / 51, 20.0 / 39, 17.0 / 51, 17.0 / 51};
+        double previousGap = -1;
+        for (Grouping grouping : groupings) {
+            assertEquals(5, grouping.team1.size());
+            assertEquals(5, grouping.team2.size());
+            double first = sum(grouping.team1, strengths);
+            double second = sum(grouping.team2, strengths);
             assertTrue(first <= second);
-            assertEquals(expectedGaps[i], second - first);
-            assertEquals(4, grouping.team1.size() + grouping.team2.size());
+            double gap = second - first;
+            assertTrue(gap + 1e-12 >= previousGap);
+            previousGap = gap;
+        }
+        Grouping best = groupings.get(0);
+        assertEquals(0.0027364792070674326,
+                sum(best.team2, strengths) - sum(best.team1, strengths), 1e-12);
+    }
+
+    @Test
+    public void oddRosterSizesDifferByOnlyOneEvenWithoutHistory() {
+        ArrayList<Player> players = new ArrayList<>(Arrays.asList(
+                player(1), player(2), player(3), player(4), player(5)));
+        ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE,
+                Collections.<Game>emptyList());
+        assertEquals(10, groupings.size());
+        for (Grouping grouping : groupings) {
+            assertEquals(1, Math.abs(grouping.team1.size() - grouping.team2.size()));
+            assertEquals(5, grouping.team1.size() + grouping.team2.size());
         }
     }
 
-    private static int sum(List<Player> players, int[] differences) {
-        int total = 0;
+    private static double sum(List<Player> players, double[] strengths) {
+        double total = 0;
         for (Player player : players) {
-            total += differences[(int) player.id - 1];
+            total += strengths[(int) player.id - 1];
         }
         return total;
     }

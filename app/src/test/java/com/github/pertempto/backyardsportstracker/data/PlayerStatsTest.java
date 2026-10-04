@@ -13,6 +13,24 @@ import static org.junit.Assert.assertFalse;
 
 public class PlayerStatsTest {
     @Test
+    public void strengthStartsNeutralAndTempersSmallSamplesForEachSport() {
+        PlayerStats stats = new PlayerStats();
+        assertEquals(0.5, stats.getStrength(Sports.ULTIMATE), 1e-12);
+        stats.pointsFor = 3;
+        assertEquals(2.0 / 3, stats.getStrength(Sports.ULTIMATE), 1e-12);
+        stats.pointsFor = 30;
+        assertEquals(11.0 / 12, stats.getStrength(Sports.ULTIMATE), 1e-12);
+        stats.pointsFor = 0;
+        stats.pointsAgainst = 3;
+        assertEquals(1.0 / 3, stats.getStrength(Sports.ULTIMATE), 1e-12);
+        stats.pointsFor = 25;
+        stats.pointsAgainst = 0;
+        assertEquals(2.0 / 3, stats.getStrength(Sports.SPIKEBALL), 1e-12);
+        stats.pointsFor = 10;
+        assertEquals(2.0 / 3, stats.getStrength(Sports.BASKETBALL), 1e-12);
+    }
+
+    @Test
     public void countsBothTeamsAndFiltersSportDeletedGamesAndNonParticipants() {
         Player player = player(1);
         Player teammate = player(2);
