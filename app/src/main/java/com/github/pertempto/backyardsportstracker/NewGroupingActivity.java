@@ -287,8 +287,8 @@ public class NewGroupingActivity extends AppCompatActivity {
 
         TextView team1RatingText = findViewById(R.id.team1Rating);
         TextView team2RatingText = findViewById(R.id.team2Rating);
-        double strength1 = PlayerStats.teamStrength(getGrouping().team1, games, sport);
-        double strength2 = PlayerStats.teamStrength(getGrouping().team2, games, sport);
+        double strength1 = Util.teamStrength(getGrouping().team1, games, sport);
+        double strength2 = Util.teamStrength(getGrouping().team2, games, sport);
         team1RatingText.setGravity(Gravity.CENTER);
         team2RatingText.setGravity(Gravity.CENTER);
         team1RatingText.setText(getString(R.string.teamStrengthFormat, strength1));

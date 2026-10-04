@@ -36,17 +36,7 @@ public class Util {
         for (Player player : players) {
             stats.put(player.id, PlayerStats.fromGames(player, games, sport));
         }
-        final HashMap<Long, HashMap<Long, Integer>> pairGames = new HashMap<>();
-        for (Player player : players) {
-            pairGames.put(player.id, new HashMap<Long, Integer>());
-        }
-        for (Game game : games) {
-            if (game.deleted || (sport != null && !sport.equals(game.sport))) {
-                continue;
-            }
-            countPairGames(game.team1, pairGames);
-            countPairGames(game.team2, pairGames);
-        }
+        final HashMap<Long, HashMap<Long, Integer>> pairGames = pairGames(players, games, sport);
 
         ArrayList<Grouping> groupings = new ArrayList<>();
         if (players.size() == 0) {
@@ -74,7 +64,7 @@ public class Util {
             Collections.sort(teams, new Comparator<ArrayList<Player>>() {
                 @Override
                 public int compare(ArrayList<Player> o1, ArrayList<Player> o2) {
-                    return Double.compare(rateTeam(o1, stats), rateTeam(o2, stats));
+                    return Double.compare(rateTeam(o1, stats, pairGames), rateTeam(o2, stats, pairGames));
                 }
             });
             groupings.add(new Grouping(sport, teams.get(0), teams.get(1)));
@@ -89,6 +79,30 @@ public class Util {
         });
 
         return groupings;
+    }
+
+    public static double teamStrength(List<Player> team, List<Game> games, String sport) {
+        HashMap<Long, PlayerStats> stats = new HashMap<>();
+        for (Player player : team) {
+            stats.put(player.id, PlayerStats.fromGames(player, games, sport));
+        }
+        return rateTeam(team, stats, pairGames(team, games, sport));
+    }
+
+    private static HashMap<Long, HashMap<Long, Integer>> pairGames(
+            List<Player> players, List<Game> games, String sport) {
+        HashMap<Long, HashMap<Long, Integer>> counts = new HashMap<>();
+        for (Player player : players) {
+            counts.put(player.id, new HashMap<Long, Integer>());
+        }
+        for (Game game : games) {
+            if (game.deleted || (sport != null && !sport.equals(game.sport))) {
+                continue;
+            }
+            countPairGames(game.team1, counts);
+            countPairGames(game.team2, counts);
+        }
+        return counts;
     }
 
     private static void countPairGames(List<Player> team,
@@ -125,16 +139,16 @@ public class Util {
 
     private static double rateGrouping(Grouping grouping, HashMap<Long, PlayerStats> stats,
                                        HashMap<Long, HashMap<Long, Integer>> pairGames) {
-        return Math.abs(rateTeam(grouping.team1, stats) - rateTeam(grouping.team2, stats))
-                + 0.01 * (familiarity(grouping.team1, pairGames)
-                + familiarity(grouping.team2, pairGames));
+        return Math.abs(rateTeam(grouping.team1, stats, pairGames)
+                - rateTeam(grouping.team2, stats, pairGames));
     }
 
-    private static double rateTeam(List<Player> team, HashMap<Long, PlayerStats> stats) {
+    private static double rateTeam(List<Player> team, HashMap<Long, PlayerStats> stats,
+                                   HashMap<Long, HashMap<Long, Integer>> pairGames) {
         double strength = 0;
         for (Player player: team) {
             strength += stats.get(player.id).getStrength();
         }
-        return strength;
+        return strength + 0.01 * familiarity(team, pairGames);
     }
 }

@@ -207,8 +207,8 @@ public class GameDetailActivity extends AppCompatActivity {
 
             TextView team1RatingText = findViewById(R.id.team1Rating);
             TextView team2RatingText = findViewById(R.id.team2Rating);
-            double strength1 = PlayerStats.teamStrength(game.team1, games, game.sport);
-            double strength2 = PlayerStats.teamStrength(game.team2, games, game.sport);
+            double strength1 = Util.teamStrength(game.team1, games, game.sport);
+            double strength2 = Util.teamStrength(game.team2, games, game.sport);
             team1RatingText.setGravity(Gravity.CENTER);
             team2RatingText.setGravity(Gravity.CENTER);
             team1RatingText.setText(getString(R.string.teamStrengthFormat, strength1));
