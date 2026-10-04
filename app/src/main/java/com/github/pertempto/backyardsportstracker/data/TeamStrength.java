@@ -6,14 +6,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-/** Equal-weight ridge fit of score margins, with bounded player-count-scaled strength. */
+/** Equal-weight score-margin fit with nonnegative player strengths and pair bonuses. */
 public class TeamStrength {
+    private static final double PLAYER_PENALTY = 10;
+    private static final double PAIR_PENALTY = 1;
     private final HashMap<Long, Integer> playerIndices;
-    private final double[] effects;
+    private final double[] contributions;
 
-    private TeamStrength(HashMap<Long, Integer> playerIndices, double[] effects) {
+    private TeamStrength(HashMap<Long, Integer> playerIndices, double[] contributions) {
         this.playerIndices = playerIndices;
-        this.effects = effects;
+        this.contributions = contributions;
     }
 
     public static TeamStrength fromGames(List<Game> games, String sport) {
@@ -59,86 +61,76 @@ public class TeamStrength {
             margins[g] = (double) game.team1Score - game.team2Score;
         }
 
-        // Penalty 1 for every player and pair: beta = X' (I + X X')^-1 y.
-        // Each game contributes one row, regardless of date, roster size or score total.
-        double[][] kernel = new double[history.size()][history.size()];
-        for (int i = 0; i < history.size(); i++) {
-            for (int j = 0; j <= i; j++) {
-                double value = 0;
-                for (int f = 0; f < features; f++) {
-                    value += rows[i][f] * rows[j][f];
-                }
-                kernel[i][j] = kernel[j][i] = value;
-            }
-            kernel[i][i] += 1;
-        }
-        solve(kernel, margins);
-        double[] effects = new double[features];
-        for (int g = 0; g < history.size(); g++) {
-            for (int f = 0; f < features; f++) {
-                effects[f] += rows[g][f] * margins[g];
-            }
-        }
-        return new TeamStrength(indices, effects);
+        return new TeamStrength(indices, fit(rows, margins, count, features));
     }
 
     public double forTeam(List<Player> team) {
-        if (team.isEmpty()) {
-            return 0;
-        }
-        double effect = 0;
+        double strength = 0;
         for (int i = 0; i < team.size(); i++) {
             Integer first = playerIndices.get(team.get(i).id);
             if (first == null) {
+                strength += 1;
                 continue;
             }
-            effect += effects[first];
+            strength += contributions[first];
             for (int j = i + 1; j < team.size(); j++) {
                 Integer second = playerIndices.get(team.get(j).id);
                 if (second != null) {
-                    effect += effects[pairIndex(Math.min(first, second),
+                    strength += contributions[pairIndex(Math.min(first, second),
                             Math.max(first, second), playerIndices.size())];
                 }
             }
         }
-        double perPlayer = 0.5 + effect / team.size();
-        return team.size() * Math.max(0.3, Math.min(0.7, perPlayer));
+        return strength;
     }
 
     private static int pairIndex(int first, int second, int count) {
         return count + first * (2 * count - first - 1) / 2 + second - first - 1;
     }
 
-    // I + X X' is positive definite, including duplicate or contradictory game rows.
-    private static void solve(double[][] matrix, double[] values) {
-        for (int col = 0; col < values.length; col++) {
-            int pivot = col;
-            for (int row = col + 1; row < values.length; row++) {
-                if (Math.abs(matrix[row][col]) > Math.abs(matrix[pivot][col])) {
-                    pivot = row;
-                }
-            }
-            double[] swap = matrix[col];
-            matrix[col] = matrix[pivot];
-            matrix[pivot] = swap;
-            double value = values[col];
-            values[col] = values[pivot];
-            values[pivot] = value;
-            double divisor = matrix[col][col];
-            for (int j = col; j < values.length; j++) {
-                matrix[col][j] /= divisor;
-            }
-            values[col] /= divisor;
-            for (int row = 0; row < values.length; row++) {
-                if (row == col) {
-                    continue;
-                }
-                double factor = matrix[row][col];
-                for (int j = col; j < values.length; j++) {
-                    matrix[row][j] -= factor * matrix[col][j];
-                }
-                values[row] -= factor * values[col];
+    // Minimize 1/2 sum (Xw - margin)^2 + 1/2 sum penalty * (w - prior)^2, w >= 0.
+    // Every historical game has one equally weighted row. Player priors are 1,
+    // pair priors are 0; regularization limits sparse-history effects, not team totals.
+    // Exact coordinate minimization uses residuals instead of a feature-sized matrix.
+    private static double[] fit(double[][] rows, double[] margins, int players, int features) {
+        double[] weights = new double[features];
+        double[] norms = new double[features];
+        double[] residuals = new double[rows.length];
+        for (int f = 0; f < features; f++) {
+            weights[f] = f < players ? 1 : 0;
+            norms[f] = f < players ? PLAYER_PENALTY : PAIR_PENALTY;
+            for (double[] row : rows) {
+                norms[f] += row[f] * row[f];
             }
         }
+        for (int g = 0; g < rows.length; g++) {
+            residuals[g] = -margins[g];
+            for (int f = 0; f < players; f++) {
+                residuals[g] += rows[g][f];
+            }
+        }
+        for (int sweep = 0; sweep < 10000; sweep++) {
+            double largestStep = 0;
+            for (int f = 0; f < features; f++) {
+                double penalty = f < players ? PLAYER_PENALTY : PAIR_PENALTY;
+                double prior = f < players ? 1 : 0;
+                double gradient = penalty * (weights[f] - prior);
+                for (int g = 0; g < rows.length; g++) {
+                    gradient += rows[g][f] * residuals[g];
+                }
+                // Nonnegativity is part of the fitted model, not a clamp on displayed strength.
+                double updated = Math.max(0, weights[f] - gradient / norms[f]);
+                double step = updated - weights[f];
+                weights[f] = updated;
+                largestStep = Math.max(largestStep, Math.abs(step));
+                for (int g = 0; g < rows.length; g++) {
+                    residuals[g] += rows[g][f] * step;
+                }
+            }
+            if (largestStep < 1e-12) {
+                break;
+            }
+        }
+        return weights;
     }
 }

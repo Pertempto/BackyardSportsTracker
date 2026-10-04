@@ -26,6 +26,7 @@ public class TeamBalancingTest {
         List<Game> games = backupGames();
         ArrayList<Player> players = new ArrayList<>(team(1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12));
         ArrayList<Grouping> groupings = Util.generateGroupings(players, Sports.ULTIMATE, games);
+        TeamStrength model = TeamStrength.fromGames(games, Sports.ULTIMATE);
         assertEquals(1023, groupings.size());
         assertCostsSorted(groupings, games);
         Set<Set<Long>> seen = new HashSet<>();
@@ -41,22 +42,74 @@ public class TeamBalancingTest {
             assertTrue(seen.add(ids(anchored)));
             if (Math.min(grouping.team1.size(), grouping.team2.size()) == 3) {
                 smallestThreeVsEightGap = Math.min(smallestThreeVsEightGap,
-                        Math.abs(Util.teamStrength(grouping.team1, games, Sports.ULTIMATE)
-                                - Util.teamStrength(grouping.team2, games, Sports.ULTIMATE)));
+                        Math.abs(model.forTeam(grouping.team1) - model.forTeam(grouping.team2)));
             }
         }
         Grouping best = groupings.get(0);
-        // Expected rosters and strengths come from the independent Python experiment.
-        assertEquals(ids(team(1, 12, 6, 9, 5)), ids(best.team1));
-        assertEquals(ids(team(2, 3, 8, 7, 10, 11)), ids(best.team2));
-        assertEquals(3.067668, Util.teamStrength(best.team1, games, Sports.ULTIMATE), 1e-6);
-        assertEquals(3.068813, Util.teamStrength(best.team2, games, Sports.ULTIMATE), 1e-6);
-        assertEquals(3.5, Util.teamStrength(team(12, 8, 2, 1, 11), games, Sports.ULTIMATE), 1e-12);
-        assertEquals(1.8, Util.teamStrength(team(3, 5, 9, 10, 6, 7), games, Sports.ULTIMATE), 1e-12);
-        assertEquals(0.3, smallestThreeVsEightGap, 1e-12);
+        // Independent Python nonnegative fit: all 14 historical participants, not just this roster.
+        assertEquals(ids(team(1, 2, 9, 10, 11)), ids(best.team1));
+        assertEquals(ids(team(3, 5, 6, 7, 8, 12)), ids(best.team2));
+        assertEquals(8.161109021443, model.forTeam(best.team1), 1e-6);
+        assertEquals(8.163190290237, model.forTeam(best.team2), 1e-6);
+        assertEquals(9.104560736445, model.forTeam(team(12, 8, 2, 1, 11)), 1e-6);
+        assertEquals(7.302434256762, model.forTeam(team(3, 5, 9, 10, 6, 7)), 1e-6);
+        assertEquals(6.285452536195, smallestThreeVsEightGap, 1e-6);
         for (Grouping grouping : groupings.subList(0, 10)) {
-            assertTrue(Math.min(grouping.team1.size(), grouping.team2.size()) > 3);
+            assertEquals(5, Math.min(grouping.team1.size(), grouping.team2.size()));
         }
+    }
+
+    @Test
+    public void fourPlayerRegressionPrefersTwoVsTwoAndKeepsAllSevenSplits() {
+        List<Game> games = backupGames();
+        ArrayList<Grouping> groupings = Util.generateGroupings(
+                new ArrayList<>(team(2, 12, 10, 6)), Sports.ULTIMATE, games);
+        assertEquals(7, groupings.size());
+        assertCostsSorted(groupings, games);
+        Grouping best = groupings.get(0);
+        assertEquals(ids(team(2, 10)), ids(best.team1));
+        assertEquals(ids(team(6, 12)), ids(best.team2));
+        TeamStrength model = TeamStrength.fromGames(games, Sports.ULTIMATE);
+        assertEquals(1.807536898476, model.forTeam(best.team1), 1e-6);
+        assertEquals(1.953153458320, model.forTeam(best.team2), 1e-6);
+        assertEquals(1.110613372455, model.forTeam(team(2)), 1e-6);
+        assertEquals(2.650076984341, model.forTeam(team(12, 10, 6)), 1e-6);
+        boolean hasSingleton = false;
+        for (Grouping grouping : groupings) {
+            hasSingleton |= Math.min(grouping.team1.size(), grouping.team2.size()) == 1;
+        }
+        assertTrue(hasSingleton);
+    }
+
+    @Test
+    public void fullHistoryFitMatchesIndependentGameMarginsAndShutoutOrdering() {
+        List<Game> games = backupGames();
+        TeamStrength model = TeamStrength.fromGames(games, Sports.ULTIMATE);
+        double[] expected = {-1.216143750717, -1.797087394709, -2.337715907927,
+                2.332205775539, 1.606415940556, -2.749495669183, -1.646936717815,
+                1.910799342606, 3.818300230254, -2.319429399284, 2.319429399284};
+        double[] margins = new double[games.size()];
+        for (int i = 0; i < games.size(); i++) {
+            Game game = games.get(i);
+            margins[i] = model.forTeam(game.team1) - model.forTeam(game.team2);
+            assertEquals(expected[i], margins[i], 1e-6);
+            assertEquals(Math.signum(game.team1Score - game.team2Score), Math.signum(margins[i]), 0);
+        }
+        double ordered = 0;
+        for (int i = 0; i < games.size(); i++) {
+            if (games.get(i).team1Score != 0 && games.get(i).team2Score != 0) {
+                continue;
+            }
+            for (int j = 0; j < games.size(); j++) {
+                if (games.get(j).team1Score == 0 || games.get(j).team2Score == 0) {
+                    continue;
+                }
+                double difference = Math.abs(margins[i]) - Math.abs(margins[j]);
+                ordered += Math.abs(difference) < 1e-9 ? 0.5 : difference > 0 ? 1 : 0;
+            }
+        }
+        // In-sample explanation only: 7 shutouts x 4 nonshutouts, with one tied comparison.
+        assertEquals(24.5, ordered, 1e-12);
     }
 
     @Test
@@ -109,11 +162,14 @@ public class TeamBalancingTest {
     private static void assertCostsSorted(List<Grouping> groupings, List<Game> games) {
         double previous = -1;
         TeamStrength model = TeamStrength.fromGames(games, Sports.ULTIMATE);
+        Grouping firstGrouping = groupings.get(0);
+        assertEquals(model.forTeam(firstGrouping.team1),
+                Util.teamStrength(firstGrouping.team1, games, Sports.ULTIMATE), 1e-12);
+        assertEquals(model.forTeam(firstGrouping.team2),
+                Util.teamStrength(firstGrouping.team2, games, Sports.ULTIMATE), 1e-12);
         for (Grouping grouping : groupings) {
-            double first = Util.teamStrength(grouping.team1, games, Sports.ULTIMATE);
-            double second = Util.teamStrength(grouping.team2, games, Sports.ULTIMATE);
-            assertEquals(model.forTeam(grouping.team1), first, 1e-12);
-            assertEquals(model.forTeam(grouping.team2), second, 1e-12);
+            double first = model.forTeam(grouping.team1);
+            double second = model.forTeam(grouping.team2);
             assertTrue(first <= second);
             double cost = Math.abs(first - second);
             assertTrue(cost + 1e-12 >= previous);
