@@ -12,16 +12,33 @@ import static org.junit.Assert.assertEquals;
 
 public class TeamStrengthTest {
     @Test
-    public void fitsNonnegativePlayersAndOnlySameSidePairBonuses() {
+    public void fitsPlayersAndOnlySameSideSignedPairEffects() {
         Game game = game(Sports.ULTIMATE, 2, 1, team(10, 30, 50), team(20, 40, 60));
         TeamStrength strength = TeamStrength.fromGames(Arrays.asList(game), Sports.ULTIMATE);
-        // Residual r = 1/(1 + 6/10 + 3/1). Players are 1 +/- r/10;
-        // winning pairs get r, while losing pairs stay at their nonnegative boundary of 0.
-        assertEquals(1 + 1.0 / 46, strength.forTeam(team(30)), 1e-9);
-        assertEquals(2 + 6.0 / 23, strength.forTeam(team(50, 10)), 1e-9);
-        assertEquals(2 - 1.0 / 23, strength.forTeam(team(60, 20)), 1e-9);
+        // Budget is inactive here: r = 1/(1 + 6/10 + 6/1).
+        // Players are 1 +/- r/10; same-side pair effects are +/- r.
+        assertEquals(1 + 1.0 / 76, strength.forTeam(team(30)), 1e-9);
+        assertEquals(2 + 3.0 / 19, strength.forTeam(team(50, 10)), 1e-9);
+        assertEquals(2 - 3.0 / 19, strength.forTeam(team(60, 20)), 1e-9);
         assertEquals(2.0, strength.forTeam(team(10, 40)), 1e-9);
-        assertEquals(2 + 1.0 / 46, strength.forTeam(team(99, 10)), 1e-9);
+        assertEquals(2 + 1.0 / 76, strength.forTeam(team(99, 10)), 1e-9);
+    }
+
+    @Test
+    public void fitsSharedPlayerBudgetJointlyRatherThanClippingEachPair() {
+        TeamStrength strength = TeamStrength.fromGames(Arrays.asList(
+                game(Sports.ULTIMATE, 2, 1, team(10), team(20, 30, 40))), Sports.ULTIMATE);
+        // All three losing budgets bind. Symmetry gives pair b=-v/4 and team strength
+        // 2.25v; minimizing the resulting quadratic yields v=1760/2041, winner=2401/2041.
+        double losingPlayer = 1760.0 / 2041;
+        assertEquals(2401.0 / 2041, strength.forTeam(team(10)), 1e-8);
+        assertEquals(losingPlayer, strength.forTeam(team(20)), 1e-8);
+        assertEquals(-440.0 / 2041,
+                strength.forTeam(team(20, 40)) - strength.forTeam(team(20))
+                        - strength.forTeam(team(40)), 1e-8);
+        assertEquals(3960.0 / 2041, strength.forTeam(team(20, 30, 40)), 1e-8);
+        assertEquals(losingPlayer / 2,
+                strength.forTeam(team(20, 30, 40)) - strength.forTeam(team(30, 40)), 1e-8);
     }
 
     @Test
@@ -32,8 +49,8 @@ public class TeamStrengthTest {
         Game basketball = game(Sports.BASKETBALL, 0, 99, team(1, 2), team(4, 5));
         TeamStrength strength = TeamStrength.fromGames(Arrays.asList(deleted, basketball, valid),
                 Sports.ULTIMATE);
-        assertEquals(2 + 6.0 / 23, strength.forTeam(team(2, 1)), 1e-9);
-        assertEquals(2 - 1.0 / 23, strength.forTeam(team(5, 4)), 1e-9);
+        assertEquals(2 + 3.0 / 19, strength.forTeam(team(2, 1)), 1e-9);
+        assertEquals(2 - 3.0 / 19, strength.forTeam(team(5, 4)), 1e-9);
     }
 
     @Test
@@ -54,10 +71,10 @@ public class TeamStrengthTest {
         Game first = game(Sports.ULTIMATE, 2, 1, team(1, 2, 3), team(4, 5, 6));
         Game swapped = game(Sports.ULTIMATE, 1, 2, team(6, 5, 4), team(3, 2, 1));
         TeamStrength strength = TeamStrength.fromGames(Arrays.asList(first, swapped), Sports.ULTIMATE);
-        // Repeated evidence: r = 1/(1 + 2*(6/10 + 3)); player change = 2r/10,
-        // and each winning pair bonus is 2r.
-        assertEquals(1 + 1.0 / 41, strength.forTeam(team(1)), 1e-9);
-        assertEquals(2 + 12.0 / 41, strength.forTeam(team(2, 3)), 1e-9);
+        // Repeated evidence: r = 1/(1 + 2*(6/10 + 6)); player change = 2r/10,
+        // and each same-side pair effect is +/- 2r, still within the shared budget.
+        assertEquals(1 + 1.0 / 71, strength.forTeam(team(1)), 1e-9);
+        assertEquals(2 + 12.0 / 71, strength.forTeam(team(2, 3)), 1e-9);
     }
 
     @Test

@@ -46,14 +46,14 @@ public class TeamBalancingTest {
             }
         }
         Grouping best = groupings.get(0);
-        // Independent Python nonnegative fit: all 14 historical participants, not just this roster.
-        assertEquals(ids(team(1, 2, 9, 10, 11)), ids(best.team1));
-        assertEquals(ids(team(3, 5, 6, 7, 8, 12)), ids(best.team2));
-        assertEquals(8.161109021443, model.forTeam(best.team1), 1e-6);
-        assertEquals(8.163190290237, model.forTeam(best.team2), 1e-6);
-        assertEquals(9.104560736445, model.forTeam(team(12, 8, 2, 1, 11)), 1e-6);
-        assertEquals(7.302434256762, model.forTeam(team(3, 5, 9, 10, 6, 7)), 1e-6);
-        assertEquals(6.285452536195, smallestThreeVsEightGap, 1e-6);
+        // Independent constrained-QP fit: all 14 historical participants, not just this roster.
+        assertEquals(ids(team(1, 3, 6, 8, 10, 12)), ids(best.team1));
+        assertEquals(ids(team(2, 5, 7, 9, 11)), ids(best.team2));
+        assertEquals(8.520147116423, model.forTeam(best.team1), 1e-6);
+        assertEquals(8.522810247574, model.forTeam(best.team2), 1e-6);
+        assertEquals(8.661356845202, model.forTeam(team(12, 8, 2, 1, 11)), 1e-6);
+        assertEquals(6.876811125111, model.forTeam(team(3, 5, 9, 10, 6, 7)), 1e-6);
+        assertEquals(5.223102181624, smallestThreeVsEightGap, 1e-6);
         for (Grouping grouping : groupings.subList(0, 10)) {
             assertEquals(5, Math.min(grouping.team1.size(), grouping.team2.size()));
         }
@@ -70,10 +70,10 @@ public class TeamBalancingTest {
         assertEquals(ids(team(2, 10)), ids(best.team1));
         assertEquals(ids(team(6, 12)), ids(best.team2));
         TeamStrength model = TeamStrength.fromGames(games, Sports.ULTIMATE);
-        assertEquals(1.807536898476, model.forTeam(best.team1), 1e-6);
-        assertEquals(1.953153458320, model.forTeam(best.team2), 1e-6);
-        assertEquals(1.110613372455, model.forTeam(team(2)), 1e-6);
-        assertEquals(2.650076984341, model.forTeam(team(12, 10, 6)), 1e-6);
+        assertEquals(1.875804405558, model.forTeam(best.team1), 1e-6);
+        assertEquals(1.981989071342, model.forTeam(best.team2), 1e-6);
+        assertEquals(1.094229361998, model.forTeam(team(2)), 1e-6);
+        assertEquals(2.726241346551, model.forTeam(team(12, 10, 6)), 1e-6);
         boolean hasSingleton = false;
         for (Grouping grouping : groupings) {
             hasSingleton |= Math.min(grouping.team1.size(), grouping.team2.size()) == 1;
@@ -85,9 +85,9 @@ public class TeamBalancingTest {
     public void fullHistoryFitMatchesIndependentGameMarginsAndShutoutOrdering() {
         List<Game> games = backupGames();
         TeamStrength model = TeamStrength.fromGames(games, Sports.ULTIMATE);
-        double[] expected = {-1.216143750717, -1.797087394709, -2.337715907927,
-                2.332205775539, 1.606415940556, -2.749495669183, -1.646936717815,
-                1.910799342606, 3.818300230254, -2.319429399284, 2.319429399284};
+        double[] expected = {-1.239314980385, -1.846269260630, -2.385712712256,
+                2.359310408427, 1.681340724919, -2.802611971142, -1.764087337643,
+                2.039908493655, 3.708437969894, -2.334999677354, 2.334999677354};
         double[] margins = new double[games.size()];
         for (int i = 0; i < games.size(); i++) {
             Game game = games.get(i);
@@ -110,6 +110,74 @@ public class TeamBalancingTest {
         }
         // In-sample explanation only: 7 shutouts x 4 nonshutouts, with one tied comparison.
         assertEquals(24.5, ordered, 1e-12);
+    }
+
+    @Test
+    public void everyPlayerAndPairMatchesIndependentConstrainedFit() {
+        TeamStrength model = TeamStrength.fromGames(backupGames(), Sports.ULTIMATE);
+        double[] players = {0.993903372684, 1.094229361998, 1.027277165939, 1.013098955604,
+                1.120749190065, 0.942956737122, 0.782594610748, 1.053799689225,
+                1.097924174162, 0.781575043560, 1.039008093952, 1.039032334220,
+                1.019738802886, 0.981626434608};
+        // Upper triangle, ordered by historical player IDs 1..14. These are external
+        // OSQP expectations, including zero effects, not values derived by the Java fit.
+        double[] pairs = {
+                0.4406636734, 0.1973880289, 0.3186592751, -0.0284207617, -0.0466449764,
+                -0.1383136034, 0.3300006453, 0.6142872877, -0.0516440651, 0.7606850196,
+                0.3035983415, 0.1973880289, 0,
+                0.1973880289, 0.3186592751, 0.4732091849, 0.0962456707, 0, 0.3300006453,
+                0.6406895916, 0, 0.0264023038, 0.3300006453, 0.1973880289, 0,
+                0, 0.1973880289, 0, 0, 0.4053842758, -0.0783471088, 0.1537307394,
+                -0.0783471088, 0.4053842758, 0.1973880289, 0,
+                0, 0, 0, -0.1779514092, -0.1779514092, 0.1212712462, 0, 0, 0, -0.1506466593,
+                0.2758211560, 0, 0, 0.6142872877, -0.1728292930, 0.7606850196,
+                -0.0264023038, 0.1973880289, 0,
+                -0.1239923067, 0, 0.1133009174, -0.0373227684, -0.2635183171, 0, 0, 0,
+                0, 0.3106889463, -0.1289913953, 0, 0, 0.1973880289, 0,
+                0.0542655076, 0.2863433558, 0.2516535365, 0.7353849211, 0, -0.1700832790,
+                0, 0.5623424827, 0.8659408242, 0, -0.1700832790,
+                0, 0, 0, 0,
+                -0.0670057386, 0, 0,
+                0, 0,
+                0};
+        assertEquals(91, pairs.length);
+        int pair = 0;
+        for (int i = 0; i < players.length; i++) {
+            assertEquals(players[i], model.forTeam(team(i + 1)), 1e-6);
+            for (int j = i + 1; j < players.length; j++) {
+                double effect = model.forTeam(team(i + 1, j + 1))
+                        - model.forTeam(team(i + 1)) - model.forTeam(team(j + 1));
+                assertEquals(pairs[pair++], effect, 1e-6);
+            }
+        }
+    }
+
+    @Test
+    public void negativePairsShareOneBudgetAcrossAllHistoricalPartners() {
+        TeamStrength model = TeamStrength.fromGames(backupGames(), Sports.ULTIMATE);
+        List<Player> players = team(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+        for (Player player : players) {
+            double individual = model.forTeam(Arrays.asList(player));
+            double penalties = 0;
+            List<Player> worstPartners = new ArrayList<>();
+            for (Player partner : players) {
+                if (player.equals(partner)) {
+                    continue;
+                }
+                double effect = model.forTeam(Arrays.asList(player, partner))
+                        - individual - model.forTeam(Arrays.asList(partner));
+                if (effect < -1e-8) {
+                    penalties -= effect;
+                    worstPartners.add(partner);
+                }
+            }
+            assertTrue(penalties <= 0.5 * individual + 1e-8);
+            // All negative partners form the worst subset for adding this player.
+            // Checking it covers every possible subset, including unobserved teams.
+            double before = model.forTeam(worstPartners);
+            worstPartners.add(player);
+            assertTrue(model.forTeam(worstPartners) - before >= 0.5 * individual - 1e-8);
+        }
     }
 
     @Test
