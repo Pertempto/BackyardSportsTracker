@@ -15,3 +15,5 @@ Use **Edit** on a game to correct its score or roster. The app replays that spor
 ## Experimental ratings
 
 A [debug-only TrueSkill experiment](docs/trueskill-experiment.md) replays existing game models without changing saved ratings or team balancing. The notes include comparisons, test instructions, and an unresolved patent/trademark clearance gate; it is excluded from release builds and is not approved for production use.
+
+The [OpenSkill comparison experiment](docs/openskill-experiment.md) adds two-team Weng–Lin Bradley–Terry and Plackett–Luce updates with independently verified score-margin behavior, a frozen chronological holdout evaluator, and separate player/pair contribution diagnostics. Available results are synthetic validation only; production behavior remains unchanged.

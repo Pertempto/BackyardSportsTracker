@@ -1,5 +1,7 @@
 # Experimental two-team skill ratings
 
+For the follow-up Weng–Lin Bradley–Terry / Plackett–Luce comparison, including score margins, chronology, and separate pair effects, see the [OpenSkill experiment](openskill-experiment.md). Verification totals below describe the original TrueSkill-only change.
+
 ## Status and licensing gate
 
 - This is a **developer-only, read-only experiment**, compiled from `app/src/debug` and absent from release builds; it is not selected by any screen or production rating path.
