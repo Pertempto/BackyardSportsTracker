@@ -11,3 +11,7 @@ Use **Settings → Export Data** to save a versioned JSON backup through Android
 ## Game history
 
 Use **Edit** on a game to correct its score or roster. The app replays that sport's game history so later rating snapshots and player ratings remain consistent. Deleted games are omitted from player history.
+
+## Experimental ratings
+
+A [debug-only TrueSkill experiment](docs/trueskill-experiment.md) replays existing game models without changing saved ratings or team balancing. The notes include comparisons, test instructions, and an unresolved patent/trademark clearance gate; it is excluded from release builds and is not approved for production use.
